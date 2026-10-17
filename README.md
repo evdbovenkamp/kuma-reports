@@ -242,6 +242,37 @@ be read from a file by adding `_FILE` (Docker secrets), e.g. `KUMA_DB_PASSWORD_F
 | `HISTORY_KEEP_DAYS` | `400` | How long archived report mails are kept. |
 | `PUID` / `PGID` | `1000` | User the app runs as inside the container. |
 
+## Resource usage & small servers
+
+Kuma Reports usually runs on the same machine as Uptime Kuma — often a small VPS. Measured with v0.1.3:
+
+| Situation | Memory |
+|---|---|
+| Idle (import every 5 minutes, GUI) | ~65 MB |
+| While rendering a PDF attachment | ~135 MB peak |
+| Right after a PDF | ~80 MB |
+| CPU | negligible; a monthly report with PDF takes 1–2 seconds |
+
+How it stays small: PDFs are rendered in a short-lived child process, and freed memory is handed back to the
+operating system after every request and background job.
+
+**On a server with little memory** (this was found on a 1 GB VPS without swap, with ~200 MB free next to Kuma):
+
+- The installer sets a container memory limit — 256 MB on hosts below 2 GB RAM, otherwise 512 MB — so Kuma
+  Reports can never push the kernel into killing Uptime Kuma. If a PDF doesn't fit, only that delivery fails;
+  you'll see it in *History* and as `degraded` on `/healthz`.
+- The installer warns when less than 300 MB is available and there is no swap. Adding a small swapfile is the
+  simplest fix:
+
+  ```sh
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo 'vm.swappiness=10' > /etc/sysctl.d/90-swappiness.conf && sysctl -p /etc/sysctl.d/90-swappiness.conf
+  ```
+
+  With `vm.swappiness=10` swap is only used when RAM really runs out.
+- Reports without PDF attachments (HTML mail, Excel, CSV) need noticeably less memory.
+
 ## How the numbers are calculated
 
 - **Incident**: from a state change to *down* until the next change to *up* (or maintenance). Kuma marks
@@ -334,6 +365,7 @@ only tells you the container runs, not that reports work.)
 | `unable to open database file` (SQLite) | Wrong volume or path; check `KUMA_DB_PATH`. |
 | External MariaDB: `Unknown MySQL server host` | Kuma Reports isn't on the same Docker network as the database. |
 | Test mail fails with a TLS error | Use the right port/security combination (465 = SSL, 587 = STARTTLS) or disable verification for internal relays. |
+| A delivery with a PDF fails on a small server / `docker inspect` shows `OOMKilled` | Not enough memory for the PDF: add swap (see *Resource usage & small servers*) or raise `mem_limit` in `docker-compose.yml`. |
 | Old periods show monitors as 100 % up | Expected for history from before installation on Kuma 2.x (see *How the numbers are calculated*). |
 
 ## Try it with demo data
