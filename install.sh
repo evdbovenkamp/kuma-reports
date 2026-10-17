@@ -146,6 +146,9 @@ KUMA_DB_USER="reporter"
 KUMA_DB_PASSWORD=""
 EXTRA_NETWORKS=()
 KUMA_BASE_URL=""
+# Join Kuma's Docker networks: Kuma can then monitor http://kuma-reports:8080/healthz, and an external
+# database container resolves by the same hostname Kuma uses.
+mapfile -t EXTRA_NETWORKS < <(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$KUMA_CONTAINER" | grep -v -E '^(bridge|host|none)?$' || true)
 
 case "$DB_TYPE" in
   sqlite)
@@ -170,8 +173,6 @@ SQL
     DB_HOST="$(json_get "$DB_CONFIG" hostname)"
     DB_PORT="$(json_get "$DB_CONFIG" port)"; DB_PORT="${DB_PORT:-3306}"
     info "Read-only database user (MariaDB at ${DB_HOST:-?}:$DB_PORT)"
-    # Kuma Reports joins Kuma's Docker networks so it resolves the same database hostname.
-    mapfile -t EXTRA_NETWORKS < <(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$KUMA_CONTAINER" | grep -v -E '^(bridge|host|none)?$' || true)
 
     # Is the database itself a container on this host? Match its name or network alias.
     DB_CONTAINER=""

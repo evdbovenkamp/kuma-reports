@@ -60,6 +60,11 @@ def next_run(report_id: int) -> datetime | None:
     return job.next_run_time if job else None
 
 
+def is_healthy() -> bool:
+    job = scheduler.get_job("import") if scheduler.running else None
+    return bool(job and job.next_run_time)
+
+
 def start() -> None:
     scheduler.add_job(importer.run_import, "interval", seconds=config.IMPORT_INTERVAL, id="import",
                       next_run_time=datetime.now(config.TIMEZONE), max_instances=1)

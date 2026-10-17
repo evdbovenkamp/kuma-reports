@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-10-17
+
+- `/healthz` is now a real health check (Kuma database, import freshness, scheduler, deliveries in the last
+  24 h) with `ok` / `degraded` / `fail` and HTTP 503 on failure — ready to be monitored by Uptime Kuma itself.
+- The installer always joins Kuma's Docker network(s), so Kuma can monitor `http://kuma-reports:8080/healthz`.
+- 5 s connect timeout for MariaDB/MySQL.
+
 ## 0.1.0 — 2026-10-17
 
 First public release.

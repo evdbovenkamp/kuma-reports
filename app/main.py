@@ -119,7 +119,37 @@ def redirect(url: str) -> RedirectResponse:
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "version": config.VERSION}
+    """Health for Docker and for monitoring from Uptime Kuma itself.
+
+    503 when Kuma Reports cannot do its job (Kuma database unreachable, import stale, scheduler stopped);
+    200 with status "degraded" when a report delivery failed in the last 24 hours.
+    Deliberately contains no monitor names, recipients or other details.
+    """
+    checks = {}
+    try:
+        kuma.reader().ping()
+        checks["kuma_db"] = {"ok": True}
+    except Exception:
+        checks["kuma_db"] = {"ok": False}
+
+    since = db.utcnow() - timedelta(hours=24)
+    with db.SessionLocal() as s:
+        last_import = db.kv_get(s, "last_import_at")
+        import_error = db.kv_get(s, "last_import_error")
+        runs = dict(s.execute(select(db.ReportRun.status, func.count()).where(
+            db.ReportRun.started_at >= since, db.ReportRun.trigger != "test").group_by(db.ReportRun.status)).all())
+    age = (db.utcnow() - datetime.fromisoformat(last_import)).total_seconds() if last_import else None
+    checks["import"] = {"ok": age is not None and age <= 3 * config.IMPORT_INTERVAL + 60,
+                        "last_import_age_s": int(age) if age is not None else None,
+                        "error": import_error.split(" ", 1)[-1].splitlines()[0][:200] if import_error else None}
+    checks["scheduler"] = {"ok": scheduler.is_healthy()}
+    checks["deliveries"] = {"ok": not runs.get("failed"), "failed_24h": runs.get("failed", 0),
+                            "sent_24h": runs.get("sent", 0)}
+
+    failing = not (checks["kuma_db"]["ok"] and checks["import"]["ok"] and checks["scheduler"]["ok"])
+    status = "fail" if failing else ("degraded" if not checks["deliveries"]["ok"] else "ok")
+    return JSONResponse({"status": status, "version": config.VERSION, "checks": checks},
+                        status_code=503 if failing else 200)
 
 
 @app.get("/setup", response_class=HTMLResponse)

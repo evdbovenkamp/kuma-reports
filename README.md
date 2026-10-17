@@ -251,6 +251,36 @@ The editor lists all variables (`report`, `summary`, `monitors`, `incidents`, `s
 `t` for translated labels, …) and previews your changes live against any report. Built-in templates can be
 edited and reset; *Duplicate* gives you your own copy.
 
+## Monitoring Kuma Reports with Uptime Kuma
+
+`/healthz` (no login needed) checks whether Kuma Reports can actually do its job:
+
+```json
+{"status": "ok", "version": "0.1.1", "checks": {
+  "kuma_db":    {"ok": true},
+  "import":     {"ok": true, "last_import_age_s": 120, "error": null},
+  "scheduler":  {"ok": true},
+  "deliveries": {"ok": true, "failed_24h": 0, "sent_24h": 3}}}
+```
+
+| Status | HTTP | Meaning |
+|---|---|---|
+| `ok` | 200 | All good. |
+| `degraded` | 200 | A report delivery failed in the last 24 hours (test sends excluded). |
+| `fail` | 503 | Kuma's database is unreachable, the last import is older than 3 × `IMPORT_INTERVAL`, or the scheduler stopped. |
+
+The installer puts Kuma Reports on Kuma's Docker network(s), so Kuma can reach it by container name.
+Add two monitors in Uptime Kuma:
+
+| Monitor | Type | URL | Check | Interval |
+|---|---|---|---|---|
+| Kuma Reports | HTTP(s) | `http://kuma-reports:8080/healthz` | status code 200–299 (503 = down) | 60 s, 3 retries |
+| Kuma Reports – deliveries | HTTP(s) – Json Query | `http://kuma-reports:8080/healthz` | `checks.deliveries.ok` equals `true` | 300 s |
+
+The Docker `HEALTHCHECK` uses the same endpoint, so `docker ps` shows `unhealthy` in the `fail` state too.
+(A Docker-container monitor is not recommended: it would require mounting the Docker socket into Kuma, and it
+only tells you the container runs, not that reports work.)
+
 ## Operations
 
 | Task | How |

@@ -12,7 +12,7 @@ services:
     volumes:
       - uptime-kuma-data:/kuma:ro              # Kuma's /app/data, read-only
       - kuma-reports-data:/data
-    # networks: [kuma]                         # only needed when Kuma uses an external MariaDB
+    # networks: [kuma]                         # Kuma's network: lets Kuma monitor http://kuma-reports:8080/healthz
 
 volumes:
   uptime-kuma-data:

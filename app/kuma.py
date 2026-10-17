@@ -48,7 +48,7 @@ def _mysql_engine(user: str, password: str, database: str, *, host: str | None =
         url = f"mysql+pymysql://{auth}@localhost/{database}?unix_socket={socket}&charset=utf8mb4"
     else:
         url = f"mysql+pymysql://{auth}@{host}:{port}/{database}?charset=utf8mb4"
-    return create_engine(url, pool_pre_ping=True, pool_recycle=1800)
+    return create_engine(url, pool_pre_ping=True, pool_recycle=1800, connect_args={"connect_timeout": 5})
 
 
 def build_source() -> KumaSource:
