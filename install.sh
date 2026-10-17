@@ -14,6 +14,8 @@ INSTALL_DIR="${KR_DIR:-/opt/kuma-reports}"
 KUMA_CONTAINER="${KR_KUMA_CONTAINER:-}"
 BIND="${KR_BIND:-}"
 PORT="${KR_PORT:-}"
+BASE_PATH="${KR_BASE_PATH-unset}"
+KUMA_URL_ARG="${KR_KUMA_URL:-}"
 ASSUME_YES="${KR_YES:-0}"
 BUILD_FROM_SOURCE=0
 
@@ -65,6 +67,8 @@ Usage: install.sh [options]
   --container NAME    Uptime Kuma container name (default: auto-detect)
   --bind ADDRESS      Address to publish the GUI on (default: 127.0.0.1)
   --port PORT         Port to publish the GUI on (default: 8080)
+  --base-path PATH    Serve the GUI under a sub-path, e.g. /reports behind Kuma's own site (default: none)
+  --kuma-url URL      Public URL of Uptime Kuma, for links in reports
   --image IMAGE       Docker image (default: $IMAGE)
   --build             Build the image from source instead of pulling it
   -y, --yes           Accept all defaults, no questions
@@ -80,6 +84,8 @@ while [ $# -gt 0 ]; do
     --container) KUMA_CONTAINER="$2"; shift 2 ;;
     --bind) BIND="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
+    --base-path) BASE_PATH="$2"; shift 2 ;;
+    --kuma-url) KUMA_URL_ARG="$2"; shift 2 ;;
     --image) IMAGE="$2"; shift 2 ;;
     --build) BUILD_FROM_SOURCE=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
@@ -216,7 +222,11 @@ esac
 info "Settings"
 HOST_TZ="$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##' || echo UTC)"
 TZ_VALUE="$(ask "Timezone for periods and schedules" "${HOST_TZ:-UTC}")"
-KUMA_BASE_URL="$(ask "Public URL of Uptime Kuma, for links in reports (optional)" "$KUMA_BASE_URL")"
+KUMA_BASE_URL="$(ask "Public URL of Uptime Kuma, for links in reports (optional)" "${KUMA_URL_ARG:-$KUMA_BASE_URL}")"
+if [ "$BASE_PATH" = "unset" ]; then
+  BASE_PATH="$(ask "Serve the GUI under a sub-path of an existing site, e.g. /reports (empty = no)" "")"
+fi
+BASE_PATH="$(printf '%s' "$BASE_PATH" | sed 's#^/*#/#; s#/*$##')"; [ "$BASE_PATH" = "/" ] && BASE_PATH=""
 BIND="$(ask "Publish the GUI on address (127.0.0.1 = local/reverse proxy only, 0.0.0.0 = everywhere)" "${BIND:-127.0.0.1}")"
 PORT="$(ask "Port" "${PORT:-8080}")"
 if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$PORT\$"; then
@@ -224,6 +234,18 @@ if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | awk '{print $4}' | gre
   PORT="$(ask "Port" "$((PORT + 1))")"
 fi
 ADMIN_PASSWORD="$(random_secret 20)"
+
+# Small VPSes often run Kuma with little headroom. Kuma Reports needs ~70 MB idle and ~140 MB while
+# rendering a PDF; a memory limit makes sure it can never push the kernel into killing Kuma itself.
+MEM_TOTAL_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+MEM_AVAIL_MB="$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+SWAP_MB="$(awk '/SwapTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ "$MEM_TOTAL_MB" -gt 0 ] && [ "$MEM_TOTAL_MB" -lt 2048 ]; then MEM_LIMIT="256m"; else MEM_LIMIT="512m"; fi
+note "Memory: ${MEM_AVAIL_MB} MB available of ${MEM_TOTAL_MB} MB, swap ${SWAP_MB} MB → container limit $MEM_LIMIT"
+if [ "$MEM_AVAIL_MB" -gt 0 ] && [ "$MEM_AVAIL_MB" -lt 300 ]; then
+  warn "only ${MEM_AVAIL_MB} MB memory available. Kuma Reports is limited to $MEM_LIMIT so it cannot starve Kuma,"
+  warn "but PDF attachments may fail when memory runs out.$([ "$SWAP_MB" = 0 ] && echo ' Consider adding swap (e.g. a 1 GB swapfile).')"
+fi
 
 # ------------------------------------------------------------------ write files
 info "Writing $INSTALL_DIR"
@@ -260,6 +282,7 @@ AUTH_MODE=form
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 IMPORT_INTERVAL=300
+BASE_PATH=$BASE_PATH
 EOF
 umask 022
 
@@ -275,6 +298,7 @@ umask 022
   fi
   echo "    container_name: kuma-reports"
   echo "    restart: unless-stopped"
+  echo "    mem_limit: $MEM_LIMIT"
   echo "    env_file: .env"
   echo "    ports:"
   echo "      - \"$BIND:$PORT:8080\""
@@ -326,7 +350,7 @@ cat <<EOF
 
 ${G}${B}Kuma Reports is running.${N}
 
-  URL       http://${URL_HOST:-localhost}:$PORT
+  URL       http://${URL_HOST:-localhost}:$PORT$BASE_PATH/
   Username  admin
   Password  $ADMIN_PASSWORD   ${D}(also in $INSTALL_DIR/.env)${N}
 
@@ -336,6 +360,23 @@ ${G}${B}Kuma Reports is running.${N}
 
 Next: open the GUI, check Mail (your Kuma e-mail notifications are listed there), and create a report.
 EOF
+if [ -n "$BASE_PATH" ]; then
+  CLIENT_IP="${SSH_CLIENT%% *}"
+  cat <<EOF
+${B}Reverse proxy:${N} add this to the nginx ${B}server { … }${N} block of your Kuma site, then ${B}nginx -t && systemctl reload nginx${N}:
+
+    location = $BASE_PATH { return 301 $BASE_PATH/; }
+    location ^~ $BASE_PATH/ {
+        allow ${CLIENT_IP:-203.0.113.10};   # $([ -n "$CLIENT_IP" ] && echo "your current IP (from this SSH session)" || echo "your IP")
+        deny  all;
+        proxy_pass http://127.0.0.1:$PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+EOF
+fi
 if [ "$BIND" = "127.0.0.1" ]; then
   note "${D}The GUI is only reachable from this machine — put a reverse proxy in front or use an SSH tunnel:${N}"
   note "${D}ssh -L $PORT:127.0.0.1:$PORT $(whoami)@$(hostname -f 2>/dev/null || hostname)${N}"

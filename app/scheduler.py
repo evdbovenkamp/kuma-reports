@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
-from . import config, db, importer, runner
+from . import config, db, importer, memory, runner
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +32,12 @@ def parse_cron(expr: str) -> CronTrigger:
 def _run_scheduled(report_id: int) -> None:
     importer.run_import()  # make sure the latest state changes are in
     runner.run_report(report_id, "schedule")
+    memory.release()
+
+
+def _run_import() -> None:
+    importer.run_import()
+    memory.release()
 
 
 def sync_report_jobs() -> None:
@@ -66,7 +72,7 @@ def is_healthy() -> bool:
 
 
 def start() -> None:
-    scheduler.add_job(importer.run_import, "interval", seconds=config.IMPORT_INTERVAL, id="import",
+    scheduler.add_job(_run_import, "interval", seconds=config.IMPORT_INTERVAL, id="import",
                       next_run_time=datetime.now(config.TIMEZONE), max_instances=1)
     scheduler.add_job(_cleanup, "cron", hour=3, minute=17, id="cleanup")
     scheduler.start()

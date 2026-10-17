@@ -65,4 +65,4 @@ def _secret_key() -> str:
 
 
 SECRET_KEY = _secret_key()
-VERSION = "0.1.2"
+VERSION = "0.1.3"

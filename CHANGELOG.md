@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.3 — 2026-10-17
+
+Found while installing on a small VPS (1 GB RAM, no swap) next to Uptime Kuma:
+
+- Much lower memory use: PDFs are rendered in a short-lived child process, and freed memory is handed back to
+  the OS after requests and jobs. Idle ~65 MB (was ~95), peak during a PDF ~135 MB (was ~175), after a PDF
+  ~80 MB (was ~173).
+- Installer: memory check with a container `mem_limit` (256 MB below 2 GB RAM, else 512 MB) so Kuma Reports can
+  never starve Kuma; warns when little memory is available and no swap exists.
+- Installer: `--base-path` (with a ready-to-paste nginx block that allows your current SSH client IP) and
+  `--kuma-url` for unattended installs.
+
 ## 0.1.2 — 2026-10-17
 
 - `BASE_PATH` setting: serve the GUI under a sub-path such as `https://kuma.example.com/reports`, e.g. behind

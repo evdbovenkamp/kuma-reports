@@ -155,15 +155,8 @@ def to_xlsx(ctx: dict) -> bytes:
 
 
 def to_pdf(html: str) -> bytes:
-    try:
-        from weasyprint import CSS, HTML
-    except ImportError as exc:  # pragma: no cover - depends on system libraries
-        raise RuntimeError("PDF output needs WeasyPrint (included in the Docker image)") from exc
-    # Mail layouts use a grey canvas and a ~760px column; drop the canvas and scale to A4.
-    html = html.replace("background:#f3f4f6", "background:#ffffff")
-    page_css = CSS(string="@page { size: A4; margin: 10mm 8mm; } .kr-canvas, .kr-content { padding: 0 !important; } "
-                          "tr { page-break-inside: avoid; }")
-    return HTML(string=html).write_pdf(stylesheets=[page_css], zoom=0.85, presentational_hints=True)
+    from .pdf import html_to_pdf
+    return html_to_pdf(html)
 
 
 def attachments(ctx: dict, html: str, delivery: dict, basename: str) -> list[tuple[str, str, bytes]]:

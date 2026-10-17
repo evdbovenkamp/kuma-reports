@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import config, db, engine, i18n, importer, kuma, mailer, render, runner, scheduler
+from . import config, db, engine, i18n, importer, kuma, mailer, memory, render, runner, scheduler
 
 logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("kuma-reports")
@@ -71,6 +71,14 @@ def _check_password(password: str, stored: str) -> bool:
 def _stored_hash() -> str | None:
     with db.SessionLocal() as s:
         return db.kv_get(s, "admin_password_hash")
+
+
+@app.middleware("http")
+async def release_memory(request: Request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith("/static/"):
+        memory.release()
+    return response
 
 
 @app.middleware("http")

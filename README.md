@@ -83,8 +83,10 @@ The installer:
 | **MariaDB/MySQL in another container** on the same host | Finds that container via the hostname in `db-config.json`, creates the `reporter` user there (root password from `MARIADB_ROOT_PASSWORD`/`MYSQL_ROOT_PASSWORD`, or asked), and joins Kuma's Docker network. |
 | **External MariaDB/MySQL server** | Shows the `CREATE USER`/`GRANT` statements to run and asks for the password; joins Kuma's Docker network. |
 
-Options: `--container NAME`, `--dir PATH`, `--bind ADDRESS`, `--port PORT`, `--build` (build from source),
-`--yes` (no questions, use defaults). Run `bash install.sh --help` for all of them.
+Options: `--container NAME`, `--dir PATH`, `--bind ADDRESS`, `--port PORT`, `--base-path /reports` (serve under
+a sub-path; prints a matching nginx block), `--kuma-url URL`, `--build` (build from source), `--yes` (no
+questions, use defaults). The installer also sets a container memory limit (256 MB on hosts below 2 GB RAM) so
+Kuma Reports can never starve Uptime Kuma. Run `bash install.sh --help` for all of them.
 
 **Upgrading:** run the installer again — it detects the existing installation and upgrades it.
 
