@@ -6,3 +6,4 @@ data/
 *.db
 *.db-*
 .secret_key
+demo/

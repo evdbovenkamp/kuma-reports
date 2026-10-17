@@ -8,7 +8,7 @@
     <tr>
       {{ k.tile(t.avg_availability, summary.uptime_str, t.sla_target ~ " " ~ sla_target_str, summary.color) }}
       {{ k.tile(t.sla_met, summary.sla_met ~ " / " ~ summary.monitors_with_data,
-                (summary.sla_missed ~ " × " ~ t.sla_missed|lower) if summary.sla_missed else "",
+                (summary.sla_missed ~ " × " ~ t.sla_missed) if summary.sla_missed else "",
                 "#2f9e5b" if not summary.sla_missed else "#d64545") }}
       {{ k.tile(t.incidents, summary.incidents, t.total_downtime ~ ": " ~ summary.downtime_str) }}
     </tr>

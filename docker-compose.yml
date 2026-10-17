@@ -3,7 +3,7 @@
 # or replace it with the host path of your Kuma data directory.
 services:
   kuma-reports:
-    image: ghcr.io/OWNER/kuma-reports:latest   # or: build: .
+    image: ghcr.io/evdbovenkamp/kuma-reports:latest   # or: build: .
     container_name: kuma-reports
     restart: unless-stopped
     env_file: .env

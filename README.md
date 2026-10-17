@@ -1,104 +1,239 @@
-# Kuma Reports
+<p align="center">
+  <img src="app/static/favicon.svg" width="64" height="64" alt="">
+</p>
+<h1 align="center">Kuma Reports</h1>
+<p align="center">
+  <b>Scheduled availability, SLA and incident reports for <a href="https://github.com/louislam/uptime-kuma">Uptime Kuma</a></b><br>
+  A small sidecar container with a web GUI — reads Kuma read-only, mails reports on a schedule.
+</p>
 
-Scheduled availability and incident reports for [Uptime Kuma](https://github.com/louislam/uptime-kuma),
-running as a small sidecar container next to your existing Kuma.
+<p align="center">
+  <img src="docs/screenshots/preview.png" alt="Report preview" width="900">
+</p>
 
-- **Reads Kuma directly, read-only** — monitors, groups, tags, notifications and heartbeats come
-  straight from Kuma's database (SQLite, embedded MariaDB or external MariaDB/MySQL; Kuma 1.23+ and 2.x).
-  Nothing has to be configured twice.
-- **Scope reports the way you organise Kuma** — pick monitors, whole groups (nested, including monitors
-  added later), tags (optionally with a tag value, e.g. `customer = acme`), monitor types, exclusions.
-- **Mail through what Kuma already has** — reuse Kuma's e-mail notifications (SMTP server, sender and
-  recipients), or add your own SMTP transports.
-- **One report, many customers** — *split per Kuma notification*: every e-mail notification linked to
-  monitors in scope receives its own report with only its monitors.
-- **Templates** — four built-in layouts (standard, compact, SLA statement, incident overview), fully
-  editable Jinja2 with reusable building blocks, live preview, and translations (EN/NL/DE).
-- **Real SLA numbers** — availability from state changes (not just check counts), SLA target,
-  MTTR/MTBF, longest incident, business-hours-only calculation, flap filter (ignore incidents shorter
-  than N minutes), maintenance excluded or counted, comparison with the previous period.
-- **Attachments** — PDF, Excel and CSV. Preview and download everything from the GUI too.
-- **Incident notes** — annotate an incident (cause, ticket) or exclude a false alarm from all reports.
-- **Own history** — state changes are copied into Kuma Reports' own database every few minutes, so
-  monthly/yearly reports keep working after Kuma prunes old heartbeats.
+---
 
-## Quick start
+Uptime Kuma tells you *right now* what is down. Kuma Reports tells you — and your customers or manager —
+**how it went last week, month or quarter**: availability per service, SLA met or missed, every incident
+with its duration and cause, trends against the previous period. Delivered by e-mail as a polished HTML
+report, with PDF, Excel and CSV attachments.
 
-1. Find the name of Kuma's data volume (or its host path):
+## Features
 
-   ```sh
-   docker inspect uptime-kuma --format '{{ range .Mounts }}{{ .Name }}{{ .Source }} -> {{ .Destination }}{{ "\n" }}{{ end }}'
-   ```
+- **Zero double configuration** — monitors, groups, tags, e-mail notifications and heartbeats are read
+  directly from Kuma's database. Works with **SQLite**, **embedded MariaDB** and **external MariaDB/MySQL**,
+  Kuma **1.23+ and 2.x**. Kuma is never written to.
+- **Scope reports the way you organise Kuma** — monitors, whole groups (nested; new monitors are picked up
+  automatically), tags with optional values (`customer = acme`), monitor types, exclusions.
+- **Send through what Kuma already has** — reuse Kuma's e-mail notifications (SMTP server, sender,
+  recipients) or add your own SMTP transports.
+- **One report definition, a report per customer** — *split per Kuma notification*: every e-mail
+  notification linked to monitors in scope gets its own report containing only its monitors.
+- **Real SLA numbers** — time-based availability from state changes, SLA target, MTTR, MTBF, longest
+  incident, comparison with the previous period, business-hours-only calculation, flap filter, maintenance
+  excluded or counted.
+- **Templates** — four built-in layouts (standard, compact, customer SLA statement, operations incident
+  overview), editable Jinja2 with reusable building blocks and a live preview. Report language EN / NL / DE.
+- **Attachments** — PDF, Excel (.xlsx) and CSV; everything can also be previewed and downloaded in the GUI.
+- **Incident notes** — add a cause or ticket number to an incident, or exclude a false alarm from all reports.
+- **Keeps its own history** — state changes are copied every few minutes, so yearly reports keep working
+  after Kuma prunes old heartbeats.
+- **Schedules** — daily, weekdays, weekly, monthly, quarterly, yearly or any cron expression; optionally
+  only send when there were incidents. Every delivery is archived.
 
-2. Copy `docker-compose.yml` and `.env.example` (as `.env`), set the volume name, and adjust `.env`.
+## Screenshots
 
-3. If Kuma uses MariaDB, create a read-only user (see below). For SQLite nothing is needed.
+| Dashboard | Report scope |
+|---|---|
+| [![Dashboard](docs/screenshots/dashboard.png)](docs/screenshots/dashboard.png) | [![Scope](docs/screenshots/report-scope.png)](docs/screenshots/report-scope.png) |
+| **Delivery & split per customer** | **Template editor with live preview** |
+| [![Delivery](docs/screenshots/report-delivery.png)](docs/screenshots/report-delivery.png) | [![Templates](docs/screenshots/template-editor.png)](docs/screenshots/template-editor.png) |
+| **Incidents with notes** | **Standard report e-mail** |
+| [![Incidents](docs/screenshots/incidents.png)](docs/screenshots/incidents.png) | [![Mail](docs/screenshots/mail-standard.png)](docs/screenshots/mail-standard.png) |
 
-4. `docker compose up -d`, open `http://127.0.0.1:8080`, choose an admin password, and create a report.
+*(Screenshots use generated demo data — see [Try it with demo data](#try-it-with-demo-data).)*
 
-The data volume of Kuma is mounted **read-only** at `/kuma`. Kuma Reports detects the database type from
-`/kuma/db-config.json`.
+---
 
-### Embedded MariaDB (Kuma 2.x default with MariaDB)
+## Installation
 
-The embedded MariaDB only listens inside the Kuma container; Kuma Reports connects through the socket
-in the data volume (`/kuma/run/mariadb.sock`). Create a user that can only read:
+### Option 1 — installer (recommended)
+
+On the Docker host where Uptime Kuma runs:
 
 ```sh
-docker exec -it uptime-kuma mariadb -S /app/data/run/mariadb.sock -u root -e "
-  CREATE USER 'reporter'@'localhost' IDENTIFIED BY 'choose-a-password';
-  GRANT SELECT ON kuma.* TO 'reporter'@'localhost';"
+curl -fsSL https://raw.githubusercontent.com/evdbovenkamp/kuma-reports/main/install.sh -o install.sh
+less install.sh        # always read a script before running it as root
+sudo bash install.sh
 ```
 
-and set `KUMA_DB_USER=reporter` / `KUMA_DB_PASSWORD=…` in `.env`.
+The installer:
 
-### External MariaDB / MySQL
+1. finds your running Uptime Kuma container and its data volume (or bind mount);
+2. reads Kuma's `db-config.json` to see which database it uses;
+3. sets up **read-only** database access (see the table below);
+4. asks for timezone, Kuma's public URL, and the address/port for the GUI;
+5. writes `/opt/kuma-reports/docker-compose.yml` and `.env` (with a generated admin password);
+6. starts the container and prints the URL and login.
 
-Create the same read-only user on your database server (`'reporter'@'%'` or the container's network),
-put Kuma Reports on the same Docker network and set `KUMA_DB_HOST`, `KUMA_DB_PORT`, `KUMA_DB_NAME`.
-Host, port and database name are also read from Kuma's `db-config.json` when not set.
+| Kuma database | What the installer does |
+|---|---|
+| **SQLite** (Kuma 1.x, default for 2.x) | Nothing extra: the database file is opened read-only from the data volume. |
+| **Embedded MariaDB** (inside the Kuma container) | Creates a user `reporter` with only `SELECT` on Kuma's database, through Kuma's MariaDB socket. |
+| **MariaDB/MySQL in another container** on the same host | Finds that container via the hostname in `db-config.json`, creates the `reporter` user there (root password from `MARIADB_ROOT_PASSWORD`/`MYSQL_ROOT_PASSWORD`, or asked), and joins Kuma's Docker network. |
+| **External MariaDB/MySQL server** | Shows the `CREATE USER`/`GRANT` statements to run and asks for the password; joins Kuma's Docker network. |
 
-### SQLite
+Options: `--container NAME`, `--dir PATH`, `--bind ADDRESS`, `--port PORT`, `--build` (build from source),
+`--yes` (no questions, use defaults). Run `bash install.sh --help` for all of them.
 
-Nothing to configure: `/kuma/kuma.db` is opened in read-only mode. Kuma Reports never writes to it.
+**Upgrading:** run the installer again — it detects the existing installation and upgrades it.
+
+### Option 2 — Docker Compose by hand
+
+1. **Find Kuma's data volume and database type**
+
+   ```sh
+   docker inspect uptime-kuma --format '{{range .Mounts}}{{.Type}} {{.Name}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+   docker exec uptime-kuma cat /app/data/db-config.json   # no file = SQLite
+   ```
+
+2. **Create a read-only database user** (MariaDB only — skip for SQLite)
+
+   Embedded MariaDB (`"type": "embedded-mariadb"`):
+
+   ```sh
+   docker exec -i uptime-kuma mariadb -S /app/data/run/mariadb.sock -u root <<'SQL'
+   CREATE USER 'reporter'@'localhost' IDENTIFIED BY 'choose-a-long-password';
+   GRANT SELECT ON kuma.* TO 'reporter'@'localhost';
+   SQL
+   ```
+
+   MariaDB/MySQL in its own container or on a server (`"type": "mariadb"`):
+
+   ```sql
+   CREATE USER 'reporter'@'%' IDENTIFIED BY 'choose-a-long-password';
+   GRANT SELECT ON kuma.* TO 'reporter'@'%';
+   ```
+
+3. **Create `docker-compose.yml` and `.env`**
+
+   ```sh
+   mkdir -p /opt/kuma-reports && cd /opt/kuma-reports
+   curl -fsSLO https://raw.githubusercontent.com/evdbovenkamp/kuma-reports/main/docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/evdbovenkamp/kuma-reports/main/.env.example -o .env
+   chmod 600 .env
+   ```
+
+   - In `docker-compose.yml`, set the name of Kuma's data volume (or replace it with the host path of Kuma's
+     data directory). For a database in another container, uncomment `networks` and use Kuma's network.
+   - In `.env`, set `KUMA_DB_PASSWORD` (MariaDB), `TZ`, `KUMA_BASE_URL` and optionally `ADMIN_PASSWORD`.
+
+4. **Start**
+
+   ```sh
+   docker compose up -d
+   docker compose logs -f     # look for "Import done"
+   ```
+
+   Open `http://127.0.0.1:8080`. Without `ADMIN_PASSWORD` you choose a password on the first visit.
+
+### Reaching the GUI
+
+By default the GUI only listens on `127.0.0.1:8080`. Use a reverse proxy with TLS, a VPN address
+(`--bind 100.x.y.z` for Tailscale), or an SSH tunnel: `ssh -L 8080:127.0.0.1:8080 you@server`.
+
+<details>
+<summary>nginx example</summary>
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name reports.example.com;
+    # ssl_certificate ...;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Set `BASE_URL=https://reports.example.com` in `.env` so session cookies are marked secure.
+</details>
+
+<details>
+<summary>Caddy example</summary>
+
+```caddyfile
+reports.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+</details>
+
+---
+
+## Getting started
+
+1. **Mail** — check that your Kuma e-mail notifications are listed, and send a test mail.
+2. **Reports → New report**
+   - *Scope*: tick groups, monitors or tags. The bar at the bottom shows how many monitors are included.
+   - *Period & filters*: e.g. *Previous month*, SLA target 99.9 %, ignore incidents shorter than 2 minutes.
+   - *Delivery & schedule*: recipients, *split per Kuma notification* for customer reports, attachments,
+     and a schedule (e.g. *Monthly, 1st at 07:00*).
+3. **Save & preview** — check the result, download the PDF, and use *Send test* to mail it to yourself.
+
+Some useful combinations:
+
+| Report | Scope | Period | Template | Delivery |
+|---|---|---|---|---|
+| Monthly SLA per customer | tag `customer` | Previous month | SLA statement | Split per Kuma notification, PDF |
+| Daily incident mail | All monitors | Yesterday | Compact | Weekdays 07:00, only if incidents |
+| Weekly operations | All monitors, grouped by group | Previous week | Incident overview | Monday 07:00, CSV |
+| Quarterly management report | Production groups | Previous quarter | Standard | Quarterly, PDF + Excel |
 
 ## Configuration
 
-All settings are environment variables; see [`.env.example`](.env.example). Every variable can also be
-read from a file with the `_FILE` suffix (Docker secrets), e.g. `KUMA_DB_PASSWORD_FILE`.
+All settings are environment variables in `.env` — see [`.env.example`](.env.example). Any variable can also
+be read from a file by adding `_FILE` (Docker secrets), e.g. `KUMA_DB_PASSWORD_FILE`.
 
-| Variable | Default | |
+| Variable | Default | Description |
 |---|---|---|
-| `KUMA_DB_TYPE` | `auto` | `auto`, `sqlite`, `embedded-mariadb`, `mariadb` |
-| `KUMA_DB_URL` | | Full SQLAlchemy URL, overrides the settings below |
-| `KUMA_DB_USER` / `KUMA_DB_PASSWORD` | `reporter` / – | MariaDB credentials |
-| `KUMA_DB_HOST` / `KUMA_DB_PORT` / `KUMA_DB_NAME` | from `db-config.json` | External MariaDB |
-| `KUMA_BASE_URL` | | Kuma URL for links in reports |
-| `TZ` | `UTC` | Timezone for periods, schedules and dates |
-| `AUTH_MODE` | `form` | `form` or `none` (only behind an authenticating proxy) |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / – | Without a password you set one on first visit |
-| `BASE_URL` | | Public URL; `https://…` enables secure cookies |
-| `IMPORT_INTERVAL` | `300` | Seconds between imports from Kuma |
-| `HISTORY_KEEP_DAYS` | `400` | How long archived report mails are kept |
-| `PUID` / `PGID` | `1000` | User the app runs as |
+| `KUMA_DB_TYPE` | `auto` | `auto`, `sqlite`, `embedded-mariadb` or `mariadb`. `auto` reads `/kuma/db-config.json`. |
+| `KUMA_DB_USER` / `KUMA_DB_PASSWORD` | `reporter` / – | Read-only MariaDB user. |
+| `KUMA_DB_HOST` / `KUMA_DB_PORT` / `KUMA_DB_NAME` | from `db-config.json` | Override the external database location. |
+| `KUMA_DB_PATH` / `KUMA_DB_SOCKET` | `/kuma/kuma.db` / `/kuma/run/mariadb.sock` | SQLite file / embedded MariaDB socket. |
+| `KUMA_DB_URL` | – | Full SQLAlchemy URL; overrides everything above. |
+| `KUMA_BASE_URL` | – | Public URL of Uptime Kuma, for "view in Kuma" links. |
+| `TZ` | `UTC` | Timezone for report periods, schedules and dates. |
+| `AUTH_MODE` | `form` | `form` (built-in login) or `none` (only behind an authenticating proxy!). |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / – | Without a password you set one on first visit. |
+| `BASE_URL` | – | Public URL of Kuma Reports; `https://…` enables secure cookies. |
+| `IMPORT_INTERVAL` | `300` | Seconds between imports from Kuma. |
+| `HISTORY_KEEP_DAYS` | `400` | How long archived report mails are kept. |
+| `PUID` / `PGID` | `1000` | User the app runs as inside the container. |
 
-## How numbers are calculated
+## How the numbers are calculated
 
-- An **incident** starts at a state change to *down* and ends at the next change to *up* (or
-  maintenance). Kuma marks these transitions as "important" heartbeats; Kuma Reports imports exactly those.
-- **Availability** = 1 − downtime ÷ monitored time, over the report period. Monitored time starts at the
-  monitor's creation if that falls inside the period. Maintenance is removed from both sides, unless
-  "count maintenance as downtime" is set. With business hours enabled, only time inside those hours counts.
-- **Summary availability** is time-weighted across all monitors in scope.
+- **Incident**: from a state change to *down* until the next change to *up* (or maintenance). Kuma marks
+  these transitions as "important" heartbeats; exactly those are imported.
+- **Availability** = 1 − downtime ÷ monitored time in the period. Monitored time starts at the monitor's
+  creation when that is inside the period. Maintenance is left out of both, unless *count maintenance as
+  downtime* is enabled. With business hours enabled only time within those hours counts.
+- **Summary availability** is time-weighted over all monitors in scope.
+- **MTTR** = average duration of resolved incidents; **MTBF** = up-time ÷ number of incidents.
 - **Check counts and response times** come from Kuma's daily statistics (`stat_daily` in 2.x, aggregated
   heartbeats in 1.x).
-- Kuma 2.x keeps only a limited number of raw heartbeats per monitor. For history from *before* Kuma
-  Reports was installed, a monitor without a known state change is assumed to have been up. From
-  installation on, every transition is recorded.
+- **History before installation**: Kuma 2.x keeps a limited number of raw heartbeats per monitor. When no
+  state change is known before a period, the monitor is assumed to have been up. From installation on,
+  every transition is recorded in Kuma Reports' own database.
 
 ## Templates
 
-Templates are Jinja2 (sandboxed). The built-in ones import building blocks from `macros.html`:
+Templates are sandboxed Jinja2 with a subject, an HTML body and an optional plain-text body. The built-in
+templates are composed from building blocks in `macros.html`, which you can use too:
 
 ```jinja
 {% import "macros.html" as k %}
@@ -112,27 +247,62 @@ Templates are Jinja2 (sandboxed). The built-in ones import building blocks from 
 {% endcall %}
 ```
 
-The template editor lists every available variable and shows a live preview against any report.
-Use `t.<label>` for translated labels so the report language applies.
+The editor lists all variables (`report`, `summary`, `monitors`, `incidents`, `series`, `groups`, `previous`,
+`t` for translated labels, …) and previews your changes live against any report. Built-in templates can be
+edited and reset; *Duplicate* gives you your own copy.
 
-## Security notes
+## Operations
 
-- Kuma Reports only needs read access to Kuma's data. Use the read-only database user; the Kuma volume
-  is mounted read-only.
-- Kuma's notification settings (including SMTP passwords) are read when sending and are never stored.
-- Own SMTP passwords are stored in Kuma Reports' database in `/data` — protect that volume.
-- Do not expose the GUI to the internet without a reverse proxy with TLS.
+| Task | How |
+|---|---|
+| Logs | `docker compose -f /opt/kuma-reports/docker-compose.yml logs -f` |
+| Upgrade | Run the installer again, or `docker compose pull && docker compose up -d` |
+| Backup | Copy `/opt/kuma-reports/data/` (reports, templates, notes, history) and `.env` |
+| Uninstall | `docker compose down`, remove `/opt/kuma-reports`, and `DROP USER 'reporter'@…` in MariaDB |
+
+## Security
+
+- Read-only all the way: a `SELECT`-only database user, and Kuma's data volume mounted `:ro`.
+- Kuma's notification settings (including SMTP passwords) are read at send time and never stored.
+- Own SMTP passwords are stored in Kuma Reports' database under `/data` — protect that volume and `.env`.
+- Built-in login with scrypt-hashed password (or `ADMIN_PASSWORD`), CSRF protection on every form,
+  sandboxed templates. Don't expose the GUI to the internet without TLS.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Dashboard shows an import error `Access denied for user 'reporter'` | Password in `.env` doesn't match, or the user was created for the wrong host (`localhost` for embedded, `%` for external). |
+| `Can't connect to local server through socket` | Kuma's data volume isn't mounted at `/kuma`, or Kuma isn't running. |
+| `unable to open database file` (SQLite) | Wrong volume or path; check `KUMA_DB_PATH`. |
+| External MariaDB: `Unknown MySQL server host` | Kuma Reports isn't on the same Docker network as the database. |
+| Test mail fails with a TLS error | Use the right port/security combination (465 = SSL, 587 = STARTTLS) or disable verification for internal relays. |
+| Old periods show monitors as 100 % up | Expected for history from before installation on Kuma 2.x (see *How the numbers are calculated*). |
+
+## Try it with demo data
+
+No Kuma at hand? Generate a realistic fake Kuma database (17 monitors, groups, tags, customer
+notifications, 75 days of heartbeats) and run against it:
+
+```sh
+python3 scripts/demo_kuma_db.py demo/kuma.db
+docker build -t kuma-reports .
+docker run --rm -p 8080:8080 -e AUTH_MODE=none -e TZ=Europe/Amsterdam \
+  -v "$PWD/demo:/kuma:ro" kuma-reports
+```
 
 ## Development
 
 ```sh
-python -m venv .venv && .venv/bin/pip install -r requirements.txt
-DATA_DIR=./data KUMA_DB_TYPE=sqlite KUMA_DB_PATH=/path/to/kuma.db AUTH_MODE=none \
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 scripts/demo_kuma_db.py demo/kuma.db
+DATA_DIR=./data KUMA_DB_TYPE=sqlite KUMA_DB_PATH=demo/kuma.db AUTH_MODE=none \
   .venv/bin/uvicorn app.main:app --reload --port 8080
 ```
 
-PDF output needs WeasyPrint's system libraries (Pango); they are included in the Docker image.
+Stack: FastAPI, SQLAlchemy, APScheduler, Jinja2, WeasyPrint (PDF, needs Pango — included in the image),
+openpyxl. No JavaScript build step. Issues and pull requests are welcome.
 
 ## License
 
-MIT
+[MIT](LICENSE). Not affiliated with the Uptime Kuma project.

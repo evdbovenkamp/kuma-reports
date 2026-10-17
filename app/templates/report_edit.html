@@ -147,14 +147,15 @@
 
     <h3>Business hours</h3>
     <label class="check"><input type="checkbox" name="bh_enabled" {{ 'checked' if f.business_hours.enabled }}> Only count business hours</label>
-    <div class="row" style="margin-top:8px">
+    <div class="hint">Off (default): 24×7 — every hour of every day counts.</div>
+    <div class="row" style="margin-top:8px" data-visible-if="bh_enabled=on">
       <div class="field"><label>Days</label>
         {% for d_ in range(7) %}<label class="check"><input type="checkbox" name="bh_days" value="{{ d_ }}" {{ 'checked' if d_ in f.business_hours.days }}> {{ WEEKDAYS[d_] }}</label>{% endfor %}
       </div>
       <div class="field"><label>From</label><input type="time" name="bh_start" value="{{ f.business_hours.start }}"></div>
       <div class="field"><label>Until</label><input type="time" name="bh_end" value="{{ f.business_hours.end }}"></div>
     </div>
-    <div class="hint">Downtime and monitored time outside these hours are ignored — useful for office-hours SLAs.</div>
+    <div class="hint" data-visible-if="bh_enabled=on">Downtime and monitored time outside these hours are ignored — useful for office-hours SLAs.</div>
   </div>
 </div>
 

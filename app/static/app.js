@@ -39,7 +39,8 @@
     form.querySelectorAll("[data-visible-if]").forEach(function (el) {
       var parts = el.dataset.visibleIf.split("=");
       var ctrl = form.querySelector("[name='" + parts[0] + "']");
-      el.style.display = ctrl && ctrl.value === parts[1] ? "" : "none";
+      var value = !ctrl ? null : ctrl.type === "checkbox" ? (ctrl.checked ? "on" : "") : ctrl.value;
+      el.style.display = value === parts[1] ? "" : "none";
     });
   }
   document.querySelectorAll("form").forEach(function (form) {
