@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="spread">
+  <div><h1>Templates</h1><p class="sub">Jinja2 templates for subject, HTML body and plain-text body. Built-in templates can be edited and reset; copies are yours.</p></div>
+  <form method="post" action="/templates"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">+ New template</button></form>
+</div>
+<div class="card">
+  <table class="list">
+    <tr><th>Name</th><th>Description</th><th class="num">Used by</th><th></th></tr>
+    {% for t in tpls %}
+    <tr>
+      <td><a href="/templates/{{ t.id }}"><b>{{ t.name }}</b></a> {% if t.key %}<span class="badge">built-in</span>{% endif %}</td>
+      <td class="small muted">{{ t.description or "" }}</td>
+      <td class="num">{{ usage.get(t.id, 0) }}</td>
+      <td class="num"><a class="btn small" href="/templates/{{ t.id }}">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

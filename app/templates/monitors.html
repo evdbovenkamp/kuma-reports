@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Monitors</h1>
+<p class="sub">Read from Uptime Kuma: groups, tags and linked notifications. Use these in report scopes.</p>
+<div class="card">
+  <div class="tree-tools"><input type="text" placeholder="Filter…" data-filter="#montable"></div>
+  <table class="list" id="montable">
+    <tr><th>Name</th><th>Type</th><th>Status</th><th>Tags</th><th>Notifications</th><th class="num">Down events 30d</th></tr>
+    {% for row in rows %}{% set m = row.m %}
+    <tr data-text="{{ m.name | lower }} {{ m.tags | map(attribute='name') | join(' ') | lower }}">
+      <td style="padding-left:{{ 8 + row.depth * 20 }}px">
+        {% if m.type == "group" %}<b>📁 {{ m.name }}</b>{% else %}{{ m.name }}{% endif %}
+        {% if not m.active %} <span class="badge">paused</span>{% endif %}
+        {% if m.url and m.type != "group" %}<div class="small muted">{{ m.url | truncate(70) }}</div>{% endif %}
+      </td>
+      <td class="small muted">{{ m.type }}</td>
+      <td>{% set st = latest.get(m.id) %}
+        {% if m.type == "group" %}{% elif st == 0 %}<span class="badge down">down</span>{% elif st == 3 %}<span class="badge maint">maintenance</span>{% elif st is none %}<span class="badge">–</span>{% else %}<span class="badge up">up</span>{% endif %}
+      </td>
+      <td>{% for t in m.tags %}<span class="tag" style="background:{{ t.color or '#888' }}">{{ t.name }}{% if t.value %}: {{ t.value }}{% endif %}</span>{% endfor %}</td>
+      <td class="small">{% for nid in m.notification_ids %}{{ notif_names.get(nid, "#" ~ nid) }}{{ ", " if not loop.last }}{% endfor %}</td>
+      <td class="num">{{ inc30.get(m.id, "") }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% import "macros.html" as k %}
+{% call k.page() %}
+  {{ k.header(report, t) }}
+
+  {% if sections.summary %}
+    {{ k.tiles(summary, t, sla_target_str, previous) }}
+  {% endif %}
+
+  {% if sections.chart and series %}
+    {{ k.chart(series, series_title) }}
+  {% endif %}
+
+  {% if sections.top and top %}
+    {{ k.section_title(t.top_downtime) }}
+    {{ k.monitor_table(top, t, show_response=False) }}
+  {% endif %}
+
+  {% if sections.monitors %}
+    {% if groups %}
+      {% for g in groups %}
+        {{ k.section_title(g.name ~ " — " ~ g.summary.uptime_str) }}
+        {{ k.monitor_table(g.monitors, t, show_group=False, show_response=sections.response) }}
+      {% endfor %}
+    {% else %}
+      {{ k.section_title(t.monitors ~ " (" ~ monitors|length ~ ")") }}
+      {{ k.monitor_table(monitors, t, show_response=sections.response) }}
+    {% endif %}
+  {% endif %}
+
+  {% if sections.incidents %}
+    {{ k.section_title(t.incidents ~ " (" ~ incidents_total ~ ")") }}
+    {% if incidents %}
+      {{ k.incident_table(incidents, t) }}
+      {% if incidents_truncated %}<div style="font-size:12px;color:#6b7280;margin-top:6px">+ {{ incidents_truncated }} …</div>{% endif %}
+    {% else %}
+      <p style="color:#2f9e5b">{{ t.no_incidents }}</p>
+    {% endif %}
+  {% endif %}
+
+  {% if sections.messages and messages %}
+    {{ k.section_title(t.top_messages) }}
+    {{ k.message_table(messages, t) }}
+  {% endif %}
+
+  {{ k.footer(report, t) }}
+{% endcall %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="spread">
+  <div><h1>{{ tpl.name }}</h1><p class="sub"><a href="/templates">Templates</a>{% if tpl.key %} · built-in “{{ tpl.key }}”{% endif %}</p></div>
+</div>
+<form method="post" action="/templates/{{ tpl.id }}" id="tplform">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="editor">
+  <div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Name</label><input type="text" name="name" value="{{ tpl.name }}"></div>
+        <div class="field"><label>Description</label><input type="text" name="description" value="{{ tpl.description or '' }}"></div>
+      </div>
+      <div class="field"><label>Subject</label><input type="text" name="subject" value="{{ tpl.subject }}" style="font-family:ui-monospace,monospace;font-size:12.5px"></div>
+      <div class="field"><label>HTML body</label><textarea class="code" name="body_html" spellcheck="false">{{ tpl.body_html }}</textarea></div>
+      <details class="field"><summary>Plain-text body {% if not tpl.body_text %}<span class="muted">(empty: generated from HTML)</span>{% endif %}</summary>
+        <textarea class="code" name="body_text" spellcheck="false" style="min-height:220px;margin-top:8px">{{ tpl.body_text or '' }}</textarea></details>
+      <div class="actions">
+        <button class="primary" name="action" value="save">Save</button>
+        <button name="action" value="duplicate">Duplicate</button>
+        {% if tpl.key %}<button name="action" value="reset" onclick="return confirm('Discard your changes and restore the built-in version?')">Reset to built-in</button>
+        {% else %}<button class="danger" name="action" value="delete" onclick="return confirm('Delete this template?')">Delete</button>{% endif %}
+      </div>
+    </div>
+    <div class="card help">
+      <h2>Available variables</h2>
+      <dl>{% for k, v in help %}<dt><code>{{ k }}</code></dt><dd>{{ v }}</dd>{% endfor %}</dl>
+      <p class="small muted">Templates run in a sandbox. Use <code>{{ "{{ t.incidents }}" }}</code> for translated labels so the report language setting applies.</p>
+      <details><summary>macros.html source</summary><pre style="white-space:pre-wrap;max-height:400px;overflow:auto;font-size:11.5px">{{ macros }}</pre></details>
+    </div>
+  </div>
+  <div>
+    <div class="card" style="position:sticky;top:12px">
+      <div class="spread" style="margin-bottom:8px">
+        <h2 style="margin:0">Live preview</h2>
+        <select id="previewreport" style="width:auto;max-width:60%">
+          <option value="">All monitors · previous month</option>
+          {% for r in reports %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flash error" id="tplerror" style="display:none"></div>
+      <div class="small muted">Subject</div>
+      <div id="tplsubject" style="font-weight:600;margin-bottom:8px">…</div>
+      <iframe id="tplpreview" class="preview-frame" sandbox></iframe>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}<script>initTemplateEditor({{ tpl.id }});</script>{% endblock %}

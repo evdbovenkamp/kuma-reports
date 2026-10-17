@@ -1,0 +1,34 @@
+[
+  {
+    "key": "standard",
+    "name": "Standard report",
+    "description": "Full report: summary tiles, availability chart, most downtime, all monitors (optionally grouped), incident list. Follows the section switches of the report.",
+    "subject": "{{ report.title }} — {{ report.period }}: {{ summary.uptime_str }} {{ t.availability|lower }}, {{ summary.incidents }} {{ t.incidents|lower }}",
+    "html": "standard.html",
+    "text": "plain.txt"
+  },
+  {
+    "key": "compact",
+    "name": "Compact summary",
+    "description": "Short mail: summary tiles and the incident list. Good for daily reports.",
+    "subject": "{{ report.title }} — {{ report.period }}: {% if has_incidents %}{{ summary.incidents }} {{ t.incidents|lower }}{% else %}{{ t.all_up }}{% endif %}",
+    "html": "compact.html",
+    "text": "plain.txt"
+  },
+  {
+    "key": "sla",
+    "name": "SLA statement (customer)",
+    "description": "Customer-facing availability per service against the SLA target, without technical error messages.",
+    "subject": "{{ report.title }} — {{ t.availability }} {{ report.period }}: {{ summary.uptime_str }}",
+    "html": "sla.html",
+    "text": "plain.txt"
+  },
+  {
+    "key": "incidents",
+    "name": "Incident overview (operations)",
+    "description": "Incidents grouped per monitor, with error messages, notes and the most frequent errors.",
+    "subject": "{{ report.title }} — {{ summary.incidents }} {{ t.incidents|lower }} ({{ report.period }})",
+    "html": "incidents.html",
+    "text": "plain.txt"
+  }
+]

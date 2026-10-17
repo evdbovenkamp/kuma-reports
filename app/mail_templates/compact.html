@@ -1,0 +1,12 @@
+{% import "macros.html" as k %}
+{% call k.page(640) %}
+  {{ k.header(report, t) }}
+  {{ k.tiles(summary, t, sla_target_str) }}
+  {% if incidents %}
+    {{ k.section_title(t.incidents ~ " (" ~ incidents_total ~ ")") }}
+    {{ k.incident_table(incidents, t, show_message=False) }}
+  {% else %}
+    <p style="color:#2f9e5b;font-weight:600">{{ t.all_up }}</p>
+  {% endif %}
+  {{ k.footer(report, t) }}
+{% endcall %}

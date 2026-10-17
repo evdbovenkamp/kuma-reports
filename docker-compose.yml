@@ -1,0 +1,21 @@
+# Kuma Reports next to an existing Uptime Kuma container.
+# Adjust the volume name to the one your Uptime Kuma uses (docker volume ls),
+# or replace it with the host path of your Kuma data directory.
+services:
+  kuma-reports:
+    image: ghcr.io/OWNER/kuma-reports:latest   # or: build: .
+    container_name: kuma-reports
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"                  # put a reverse proxy in front, or use your VPN address
+    volumes:
+      - uptime-kuma-data:/kuma:ro              # Kuma's /app/data, read-only
+      - kuma-reports-data:/data
+    # networks: [kuma]                         # only needed when Kuma uses an external MariaDB
+
+volumes:
+  uptime-kuma-data:
+    external: true
+    name: uptime-kuma                          # <- name of your Kuma data volume
+  kuma-reports-data:

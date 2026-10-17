@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Incidents</h1>
+<p class="sub">Derived from Kuma state changes. Add a note (shown in reports) or exclude an incident from all calculations, e.g. a false alarm.</p>
+
+<form method="get" class="card actions">
+  <label class="inline" style="margin:0">Last
+    <select name="days" style="width:auto">{% for n in [1, 7, 30, 90, 180, 365] %}<option value="{{ n }}" {{ 'selected' if n == days }}>{{ n }} day{{ 's' if n > 1 }}</option>{% endfor %}</select></label>
+  <label class="inline" style="margin:0">Group
+    <select name="group" style="width:auto"><option value="">all</option>{% for g in groups %}<option value="{{ g.id }}" {{ 'selected' if group == g.id }}>{{ g.name }}</option>{% endfor %}</select></label>
+  <label class="inline" style="margin:0">Min. minutes <input type="number" name="min_min" value="{{ min_min }}" step="0.5" min="0" style="width:80px"></label>
+  <input type="text" name="q" value="{{ q }}" placeholder="Search monitor, group or message" style="max-width:280px">
+  <button>Filter</button>
+  <span class="muted small" style="margin-left:auto">{{ total }} incident{{ 's' if total != 1 }}</span>
+</form>
+
+<div class="card">
+  <table class="list">
+    <tr><th>Monitor</th><th>Start</th><th>End</th><th class="num">Duration</th><th>Message</th><th style="min-width:260px">Note / exclude</th></tr>
+    {% for r in rows %}{% set i = r.i %}
+    <tr>
+      <td><b>{{ r.m.name }}</b><div class="small muted">{{ r.group }}</div></td>
+      <td class="small" style="white-space:nowrap">{{ i.start | local }}</td>
+      <td class="small" style="white-space:nowrap">{% if i.end %}{{ i.end | local }}{% else %}<span class="badge down">ongoing</span>{% endif %}</td>
+      <td class="num">{{ i.duration(now) | duration }}</td>
+      <td class="small muted" style="max-width:340px;word-break:break-word">{{ i.msg | truncate(200) }}</td>
+      <td>
+        <form method="post" action="/incidents/{{ i.start_id }}" class="actions">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="text" name="note" value="{{ i.note }}" placeholder="cause / remark" style="flex:1;min-width:140px;padding:3px 6px">
+          <label class="check small" style="margin:0" title="Exclude from all reports"><input type="checkbox" name="excluded"> excl.</label>
+          <button class="small">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">No incidents.</td></tr>
+    {% endfor %}
+  </table>
+  {% if total > rows|length %}<p class="small muted">Showing the latest {{ rows|length }}.</p>{% endif %}
+</div>
+
+{% if excluded %}
+<div class="card">
+  <h2>Excluded incidents in this period</h2>
+  <table class="list">
+    {% for x in excluded %}
+    <tr>
+      <td><b>{{ x.m.name if x.m else "#" ~ x.sc.monitor_id }}</b></td>
+      <td class="small">{{ x.sc.time | local }}</td>
+      <td class="small muted">{{ x.note.note or "" }}</td>
+      <td class="num">
+        <form method="post" action="/incidents/{{ x.note.start_id }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="note" value="{{ x.note.note or '' }}"><button class="small">Include again</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="spread">
+  <div>
+    <h1>{{ report.name }}</h1>
+    <p class="sub"><a href="/reports/{{ report.id }}">Edit</a> · <a href="/history?report={{ report.id }}">History</a>
+      · {% if report.schedule and report.enabled %}next run {{ next_run.strftime("%Y-%m-%d %H:%M") if next_run else "–" }}{% else %}not scheduled{% endif %}</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card" style="flex:2">
+    <form method="get" class="actions" style="margin-bottom:12px">
+      {% if jobs | length > 1 %}
+      <label class="inline" style="margin:0">Variant
+        <select name="job" onchange="this.form.submit()" style="width:auto">
+          {% for j in jobs %}<option value="{{ loop.index0 }}" {{ 'selected' if loop.index0 == job }}>{{ j.label }} ({{ j.monitors | length }})</option>{% endfor %}
+        </select></label>
+      {% endif %}
+      <label class="inline" style="margin:0">Template
+        <select name="template" onchange="this.form.submit()" style="width:auto">
+          {% for t in templates_list %}<option value="{{ t.id }}" {{ 'selected' if tpl and t.id == tpl.id }}>{{ t.name }}</option>{% endfor %}
+        </select></label>
+    </form>
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    {% if not jobs %}
+      <div class="flash error">Nothing to send: no monitors in scope{% if (report.config.delivery or {}).split == "notification" %}, or none of them has a Kuma e-mail notification{% endif %}.</div>
+    {% else %}
+      <div class="small muted">Subject</div>
+      <div style="font-weight:600;margin-bottom:10px">{{ subject }}</div>
+      {% set q = "job=" ~ job ~ ("&template=" ~ tpl.id if tpl else "") %}
+      <iframe class="preview-frame" src="/reports/{{ report.id }}/render?{{ q }}" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+      <div class="actions" style="margin-top:10px">
+        <span class="small muted">Download:</span>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=pdf">PDF</a>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=xlsx">Excel</a>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=monitors.csv">CSV monitors</a>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=incidents.csv">CSV incidents</a>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=text" target="_blank">Plain text</a>
+        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}" target="_blank">Open HTML</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="flex:1;min-width:280px">
+    <div class="card">
+      <h2>Delivery</h2>
+      <table class="list small">
+        <tr><td class="muted">Via</td><td>{{ transport }}</td></tr>
+        {% for j in jobs %}
+        <tr><td class="muted">{{ j.label if jobs|length > 1 else "To" }}</td>
+            <td>{{ (j.to + j.cc) | join(", ") or "—" }}{% if j.bcc %}<div class="muted">bcc: {{ j.bcc | join(", ") }}</div>{% endif %}
+              <div class="muted">{{ j.monitors | length }} monitor(s)</div></td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h2>Send a test</h2>
+      <p class="small muted">Sends {{ "every variant" if jobs|length > 1 else "the report" }} only to this address.</p>
+      <form method="post" action="/reports/{{ report.id }}/send">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div class="field"><input type="email" name="test_to" required placeholder="you@example.com"></div>
+        <button>Send test</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Send now</h2>
+      <p class="small muted">Sends to the real recipients, as the schedule would.</p>
+      <form method="post" action="/reports/{{ report.id }}/send" onsubmit="return confirm('Send this report to all recipients now?')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="primary">Send to recipients</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

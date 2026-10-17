@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Kuma Reports{% endblock %}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v={{ version }}">
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand"><img src="/static/favicon.svg" width="22" height="22" alt=""> Kuma <span>Reports</span></div>
+    {% set items = [("dashboard","/","Dashboard"),("report","/reports","Reports"),("template","/templates","Templates"),
+                    ("mail","/mail","Mail"),("monitors","/monitors","Monitors"),("incidents","/incidents","Incidents"),
+                    ("history","/history","History")] %}
+    {% for key, href, label in items %}
+      <a href="{{ href }}" class="{{ 'active' if nav.startswith(key) else '' }}">{{ label }}</a>
+    {% endfor %}
+    <div class="bottom">
+      v{{ version }}
+      {% if auth and user %} · {{ user }} ·
+        <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small" style="border:none;padding:0;color:var(--muted);background:none">log out</button></form>
+      {% endif %}
+    </div>
+  </nav>
+  <main>
+    {% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script>window.CSRF = {{ csrf | tojson }};</script>
+<script src="/static/app.js?v={{ version }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

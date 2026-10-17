@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="spread">
+  <div><h1>Reports</h1><p class="sub">Each report combines a scope (monitors, groups, tags), a period, a template, recipients and a schedule.</p></div>
+  <a class="btn primary" href="/reports/new">+ New report</a>
+</div>
+<div class="card">
+  {% if reports %}
+  <table class="list">
+    <tr><th>Name</th><th>Scope</th><th>Period</th><th>Template</th><th>Schedule</th><th>Next run</th><th>Last run</th><th></th></tr>
+    {% for r in reports %}{% set cfg = r.config %}
+    <tr>
+      <td><a href="/reports/{{ r.id }}"><b>{{ r.name }}</b></a>{% if not r.enabled %} <span class="badge">disabled</span>{% endif %}
+        {% if (cfg.delivery or {}).split == "notification" %}<div class="small muted">split per Kuma notification</div>{% endif %}</td>
+      <td class="small">{{ describe(r) }}</td>
+      <td class="small">{{ PERIODS.get((cfg.period or {}).type, "?") }}</td>
+      <td class="small">{{ tpl_names.get(r.template_id, "Standard report") }}</td>
+      <td class="small">{{ SCHEDULE_PRESETS.get(r.schedule or "", r.schedule) }}</td>
+      <td class="small">{{ next_runs[r.id].strftime("%Y-%m-%d %H:%M") if next_runs[r.id] else "–" }}</td>
+      <td class="small">{% set l = last[r.id] %}{% if l %}<span class="badge {{ l.status }}">{{ l.status }}</span> {{ l.started_at | local }}{% else %}–{% endif %}</td>
+      <td class="actions" style="justify-content:flex-end">
+        <a class="btn small" href="/reports/{{ r.id }}/preview">Preview</a>
+        <form class="inline" method="post" action="/reports/{{ r.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No reports yet.</p>
+  <p>Ideas to start with:</p>
+  <ul class="muted">
+    <li><b>Monthly SLA per customer</b> — scope: a tag or group, period: previous month, template: SLA statement, split per Kuma notification so every customer only gets their own checks.</li>
+    <li><b>Daily operations mail</b> — all monitors, yesterday, compact template, only send when there were incidents.</li>
+    <li><b>Weekly overview</b> — previous week, grouped by group, with an Excel attachment.</li>
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

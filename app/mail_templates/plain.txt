@@ -1,0 +1,22 @@
+{{ report.title }} — {{ report.period }}
+{{ "=" * (report.title|length + report.period|length + 3) }}
+{% if report.intro %}
+{{ report.intro }}
+{% endif %}
+{{ t.avg_availability }}: {{ summary.uptime_str }} ({{ t.sla_target }} {{ sla_target_str }})
+{{ t.incidents }}: {{ summary.incidents }} ({{ summary.affected }}/{{ summary.monitors }} {{ t.affected|lower }})
+{{ t.total_downtime }}: {{ summary.downtime_str }}
+{{ t.longest_incident }}: {{ summary.longest_str }}
+{{ t.mttr }}: {{ summary.mttr_str }}
+
+{{ t.monitors }}
+{% for m in monitors %}- {{ m.name }}{% if m.group %} ({{ m.group }}){% endif %}: {{ m.uptime_str }}, {{ m.incidents }} {{ t.incidents|lower }}, {{ t.downtime|lower }} {{ m.downtime_str }}
+{% endfor %}
+{% if incidents %}
+{{ t.incidents }}
+{% for i in incidents %}- {{ i.monitor }}: {{ i.start_str }} → {{ i.end_str }} ({{ i.duration_str }}){% if i.message %} — {{ i.message|truncate(120) }}{% endif %}{% if i.note %} [{{ i.note }}]{% endif %}
+{% endfor %}{% else %}
+{{ t.no_incidents }}
+{% endif %}
+--
+{{ t.generated }} {{ report.generated }}{% if report.kuma_url %} · {{ report.kuma_url }}{% endif %}

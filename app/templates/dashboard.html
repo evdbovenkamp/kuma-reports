@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="spread">
+  <div><h1>Dashboard</h1><p class="sub">Last 7 days across all monitors, plus import and report status.</p></div>
+  <div class="actions"><a class="btn primary" href="/reports/new">+ New report</a></div>
+</div>
+
+{% set s = week.summary %}
+<div class="tiles">
+  <div class="tile"><div class="l">Availability (7 days)</div><div class="v" style="color:{{ s.color }}">{{ s.uptime_str }}</div><div class="s">lowest: {{ s.uptime_min_str }}</div></div>
+  <div class="tile"><div class="l">Incidents</div><div class="v">{{ s.incidents }}</div><div class="s">{{ s.affected }} of {{ s.monitors }} monitors{% if s.ongoing %}, <b style="color:var(--danger)">{{ s.ongoing }} ongoing</b>{% endif %}</div></div>
+  <div class="tile"><div class="l">Downtime</div><div class="v">{{ s.downtime_str }}</div><div class="s">longest: {{ s.longest_str }}</div></div>
+  <div class="tile"><div class="l">MTTR</div><div class="v">{{ s.mttr_str }}</div><div class="s">avg response {{ s.ping_avg_str }}</div></div>
+</div>
+
+<div class="row">
+  <div class="card">
+    <h2>{{ week.series_title }}</h2>
+    <div class="bars">
+      {% for b in week.series %}<div style="height:{{ b.height }}%;background:{{ b.color }}" title="{{ b.label }}: {{ b.uptime_str }} · {{ b.incidents }} incident(s)"></div>{% endfor %}
+    </div>
+    <div class="spread small muted" style="margin-top:4px"><span>{{ week.series[0].label if week.series }}</span><span>{{ week.series[-1].label if week.series }}</span></div>
+    {% if week.top %}
+    <h3>Most downtime</h3>
+    <table class="list">
+      {% for m in week.top[:6] %}
+      <tr><td>{{ m.name }}<div class="small muted">{{ m.group }}</div></td><td class="num" style="color:{{ m.color }}">{{ m.uptime_str }}</td><td class="num">{{ m.incidents }}×</td><td class="num">{{ m.downtime_str }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Uptime Kuma source</h2>
+    <table class="list">
+      <tr><td class="muted">Database</td><td>{{ source }}</td></tr>
+      <tr><td class="muted">Kuma version</td><td>{{ info.kuma_version or "?" }}</td></tr>
+      <tr><td class="muted">Monitors / groups / tags</td><td>{{ counts.monitors }} / {{ counts.groups }} / {{ counts.tags }}</td></tr>
+      <tr><td class="muted">State changes stored</td><td>{{ counts.state_changes }}{% if counts.since %} <span class="muted">since {{ counts.since | local }}</span>{% endif %}</td></tr>
+      <tr><td class="muted">Last import</td><td>{{ info.last_import_at and (info.last_import_at[:19].replace("T"," ") ~ " UTC") or "never" }}</td></tr>
+      <tr><td class="muted">Timezone</td><td>{{ config.TIMEZONE }}</td></tr>
+    </table>
+    {% if info.last_import_error %}<div class="flash error" style="margin-top:12px">{{ info.last_import_error }}</div>{% endif %}
+    <form method="post" action="/import" style="margin-top:12px"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Import now</button></form>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card">
+    <div class="spread"><h2>Reports</h2><a href="/reports" class="small">all reports →</a></div>
+    {% if reports %}
+    <table class="list">
+      <tr><th>Name</th><th>Schedule</th><th>Next run</th></tr>
+      {% for r in reports %}
+      <tr><td><a href="/reports/{{ r.id }}">{{ r.name }}</a>{% if not r.enabled %} <span class="badge">disabled</span>{% endif %}</td>
+          <td class="small">{{ SCHEDULE_PRESETS.get(r.schedule or "", r.schedule) }}</td>
+          <td class="small">{{ next_runs[r.id].strftime("%Y-%m-%d %H:%M") if next_runs[r.id] else "–" }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <p class="muted">No reports yet. <a href="/reports/new">Create your first report</a> — pick monitors, groups or tags, a period, a template and recipients.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="spread"><h2>Recent deliveries</h2><a href="/history" class="small">history →</a></div>
+    {% if runs %}
+    <table class="list">
+      {% for r in runs %}
+      <tr><td class="small">{{ r.started_at | local }}</td><td>{{ r.report_name }}</td><td><span class="badge {{ r.status }}">{{ r.status }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Nothing sent yet.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

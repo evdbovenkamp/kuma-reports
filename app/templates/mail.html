@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Mail</h1>
+<p class="sub">Reports can be sent through the e-mail notifications you already configured in Uptime Kuma, or through your own SMTP transports.</p>
+
+<div class="card">
+  <h2>From Uptime Kuma (read-only)</h2>
+  {% if error %}<div class="flash error">Could not read Kuma notifications: {{ error }}</div>{% endif %}
+  {% if notifs %}
+  <table class="list">
+    <tr><th>Notification</th><th>Server</th><th>From</th><th>To</th><th></th></tr>
+    {% for n in notifs %}{% set c = n.config %}
+    <tr>
+      <td><b>{{ n.name }}</b>{% if c.isDefault %} <span class="badge">default</span>{% endif %}{% if not n.active %} <span class="badge">inactive</span>{% endif %}</td>
+      <td class="small">{{ c.smtpHost }}:{{ c.smtpPort }} {{ "SSL" if c.smtpSecure else "" }}{% if c.smtpUsername %}<div class="muted">user {{ c.smtpUsername }}</div>{% endif %}</td>
+      <td class="small">{{ c.smtpFrom }}</td>
+      <td class="small">{{ c.smtpTo }}{% if c.smtpCC %}<div class="muted">cc {{ c.smtpCC }}</div>{% endif %}</td>
+      <td class="num">
+        <form method="post" action="/mail/test" class="actions" style="justify-content:flex-end">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="transport" value="kuma:{{ n.id }}">
+          <input type="email" name="to" required placeholder="test address" value="{{ (c.smtpTo or '').split(',')[0] }}" style="width:190px;padding:3px 6px">
+          <button class="small">Test</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% elif not error %}<p class="muted">No e-mail (SMTP) notifications found in Kuma.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Own SMTP transports</h2>
+  {% if transports %}
+  <table class="list">
+    <tr><th>Name</th><th>Server</th><th>From</th><th></th></tr>
+    {% for t in transports %}
+    <tr>
+      <td><b>{{ t.name }}</b></td>
+      <td class="small">{{ t.host }}:{{ t.port }} · {{ t.security }}{% if not t.verify_tls %} · no TLS verify{% endif %}{% if t.username %}<div class="muted">user {{ t.username }}</div>{% endif %}</td>
+      <td class="small">{{ t.from_addr }}</td>
+      <td class="num">
+        <div class="actions" style="justify-content:flex-end">
+          <form method="post" action="/mail/test" class="actions">
+            <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="transport" value="smtp:{{ t.id }}">
+            <input type="email" name="to" required placeholder="test address" style="width:190px;padding:3px 6px"><button class="small">Test</button>
+          </form>
+          <a class="btn small" href="/mail?edit={{ t.id }}#transport">Edit</a>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">None yet — optional when Kuma notifications are fine.</p>{% endif %}
+</div>
+
+<div class="card" id="transport">
+  <h2>{{ "Edit transport" if edit else "Add SMTP transport" }}</h2>
+  <form method="post" action="/mail/transport">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+    <div class="row">
+      <div class="field"><label>Name</label><input type="text" name="name" value="{{ edit.name if edit else '' }}" placeholder="e.g. Office 365"></div>
+      <div class="field"><label>From address</label><input type="text" name="from_addr" value="{{ edit.from_addr if edit else '' }}" required placeholder='"Monitoring" <monitoring@example.com>'></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Host</label><input type="text" name="host" value="{{ edit.host if edit else '' }}" required></div>
+      <div class="field"><label>Port</label><input type="number" name="port" value="{{ edit.port if edit else 587 }}"></div>
+      <div class="field"><label>Security</label>
+        <select name="security">{% for k, v in [("starttls","STARTTLS"),("ssl","SSL/TLS (465)"),("none","None")] %}<option value="{{ k }}" {{ 'selected' if edit and edit.security == k }}>{{ v }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Username</label><input type="text" name="username" value="{{ edit.username or '' if edit else '' }}" autocomplete="off"></div>
+      <div class="field"><label>Password</label><input type="password" name="password" autocomplete="new-password" placeholder="{{ 'unchanged' if edit else '' }}"></div>
+    </div>
+    <label class="check"><input type="checkbox" name="verify_tls" {{ 'checked' if not edit or edit.verify_tls }}> Verify TLS certificate</label>
+    <div class="actions" style="margin-top:12px">
+      <button class="primary">Save</button>
+      {% if edit %}<button class="danger" name="action" value="delete" onclick="return confirm('Delete transport?')">Delete</button><a class="btn" href="/mail">Cancel</a>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

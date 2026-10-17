@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block content %}
+{% set sc = cfg.scope %}{% set f = cfg.filters %}{% set d = cfg.delivery %}
+<div class="spread">
+  <div>
+    <h1>{{ report.name if report else "New report" }}</h1>
+    <p class="sub">{% if report %}<a href="/reports/{{ report.id }}/preview">Preview</a> · <a href="/history?report={{ report.id }}">History</a>{% else %}Choose what to report on, over which period, and who receives it.{% endif %}</p>
+  </div>
+  {% if report %}
+  <div class="actions">
+    <form class="inline" method="post" action="/reports/{{ report.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
+    <form class="inline" method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Delete</button></form>
+  </div>
+  {% endif %}
+</div>
+
+<form method="post" action="/reports/save" id="reportform">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% if report %}<input type="hidden" name="id" value="{{ report.id }}">{% endif %}
+
+<div class="tabs" data-tabs>
+  <button type="button" data-tab="general" class="active">General</button>
+  <button type="button" data-tab="scope">Scope</button>
+  <button type="button" data-tab="period">Period &amp; filters</button>
+  <button type="button" data-tab="content">Content</button>
+  <button type="button" data-tab="delivery">Delivery &amp; schedule</button>
+</div>
+
+{# ------------------------------------------------------------ general #}
+<div class="tab active" id="tab-general">
+  <div class="card">
+    <div class="row">
+      <div class="field"><label>Name</label><input type="text" name="name" value="{{ report.name if report else '' }}" required placeholder="e.g. Monthly SLA – customers"></div>
+      <div class="field"><label>Report language</label>
+        <select name="language">{% for k, v in LANGUAGES.items() %}<option value="{{ k }}" {{ 'selected' if cfg.language == k }}>{{ v }}</option>{% endfor %}</select>
+        <div class="hint">Language of labels, dates and durations in the report itself.</div>
+      </div>
+    </div>
+    <div class="field"><label>Title in report <span class="muted">(optional)</span></label><input type="text" name="title" value="{{ cfg.title }}" placeholder="Defaults to the name"></div>
+    <div class="field"><label>Introduction <span class="muted">(optional)</span></label><textarea name="intro" placeholder="Text shown under the title">{{ cfg.intro }}</textarea></div>
+    <div class="row">
+      <div class="field"><label>Template</label>
+        <select name="template_id">
+          {% for t in mail_templates %}<option value="{{ t.id }}" {{ 'selected' if (report and report.template_id == t.id) or (not (report and report.template_id) and t.key == 'standard') }}>{{ t.name }}</option>{% endfor %}
+        </select>
+        <div class="hint"><a href="/templates">Manage templates</a> — layout of subject and mail body.</div>
+      </div>
+      <div class="field"><label>&nbsp;</label><label class="check"><input type="checkbox" name="enabled" {{ 'checked' if not report or report.enabled }}> Enabled (scheduled sending active)</label></div>
+    </div>
+  </div>
+</div>
+
+{# ------------------------------------------------------------ scope #}
+<div class="tab" id="tab-scope">
+  <div class="card">
+    <h2>What to include</h2>
+    <p class="muted small" style="margin-top:-4px">Everything you tick is combined. Selecting a group includes all monitors in it (also nested groups) — including monitors added to that group later. Same for tags.</p>
+    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="scope_all" {{ 'checked' if sc.all }}> <b>All monitors</b></label>
+
+    <div class="row">
+      <div>
+        <label>Groups and monitors</label>
+        <div class="tree-tools"><input type="text" placeholder="Filter…" data-filter="#tree-include"></div>
+        <div class="tree" id="tree-include">
+          {% for row in tree %}{% set m = row.m %}
+          <div class="item {{ 'group' if m.type == 'group' }}" style="padding-left:{{ row.depth * 18 }}px" data-text="{{ m.name | lower }}">
+            {% if m.type == "group" %}
+              <input type="checkbox" name="groups" value="{{ m.id }}" id="g{{ m.id }}" {{ 'checked' if m.id in sc.groups }}>
+              <span><label for="g{{ m.id }}" class="inline" style="margin:0;font-weight:600">📁 {{ m.name }}</label></span>
+            {% else %}
+              <input type="checkbox" name="monitors" value="{{ m.id }}" id="m{{ m.id }}" {{ 'checked' if m.id in sc.monitors }}>
+              <label for="m{{ m.id }}" class="inline" style="margin:0">{{ m.name }}</label> <span class="t">{{ m.type }}{{ ' · paused' if not m.active }}</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <label>Tags</label>
+        {% if tags %}
+        <div class="tree" style="max-height:300px">
+          {% for t in tags %}
+          <div class="item">
+            <input type="checkbox" name="tags" value="{{ t.id }}" id="t{{ t.id }}" {{ 'checked' if t.id in tag_rules }}>
+            <label for="t{{ t.id }}" class="inline" style="margin:0"><span class="tag" style="background:{{ t.color or '#888' }}">{{ t.name }}</span></label>
+            <input type="text" name="tagval_{{ t.id }}" value="{{ tag_rules.get(t.id, '') }}" placeholder="any value" style="max-width:150px;padding:2px 6px;margin-left:auto">
+          </div>
+          {% endfor %}
+        </div>
+        <div class="field" style="margin-top:8px">
+          <label class="check"><input type="radio" name="tag_match" value="any" {{ 'checked' if sc.tag_match != 'all' }}> match any tag</label>
+          <label class="check"><input type="radio" name="tag_match" value="all" {{ 'checked' if sc.tag_match == 'all' }}> must have all tags</label>
+          <div class="hint">Optional value: only monitors whose tag has exactly that value (e.g. tag <code>customer</code> = <code>acme</code>).</div>
+        </div>
+        {% else %}<p class="muted small">No tags defined in Uptime Kuma.</p>{% endif %}
+
+        <label style="margin-top:14px">Monitor types <span class="muted">(optional filter)</span></label>
+        <div>{% for t in types %}<label class="check"><input type="checkbox" name="types" value="{{ t }}" {{ 'checked' if t in sc.types }}> {{ t }}</label>{% endfor %}</div>
+        <div class="hint">Leave empty for all types.</div>
+
+        <label class="check" style="margin-top:12px"><input type="checkbox" name="include_paused" {{ 'checked' if sc.include_paused }}> Include paused monitors</label>
+      </div>
+    </div>
+
+    <details style="margin-top:14px" {{ 'open' if sc.exclude }}>
+      <summary>Exclude ({{ sc.exclude | length }})</summary>
+      <p class="muted small">Excluded groups/monitors are removed after everything above is combined.</p>
+      <div class="tree-tools"><input type="text" placeholder="Filter…" data-filter="#tree-exclude"></div>
+      <div class="tree" id="tree-exclude" style="max-height:300px">
+        {% for row in tree %}{% set m = row.m %}
+        <div class="item {{ 'group' if m.type == 'group' }}" style="padding-left:{{ row.depth * 18 }}px" data-text="{{ m.name | lower }}">
+          <input type="checkbox" name="exclude" value="{{ m.id }}" id="x{{ m.id }}" {{ 'checked' if m.id in sc.exclude }}>
+          <label for="x{{ m.id }}" class="inline" style="margin:0;{{ 'font-weight:600' if m.type == 'group' }}">{{ '📁 ' if m.type == 'group' }}{{ m.name }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+</div>
+
+{# ------------------------------------------------------------ period & filters #}
+<div class="tab" id="tab-period">
+  <div class="card">
+    <h2>Period</h2>
+    <div class="row">
+      <div class="field"><label>Report period</label>
+        <select name="period_type" data-show-when>
+          {% for k, v in PERIODS.items() %}<option value="{{ k }}" {{ 'selected' if cfg.period.type == k }}>{{ v }}</option>{% endfor %}
+        </select>
+        <div class="hint">Relative to the moment the report runs. "Previous month" sent on the 1st covers the whole past month.</div>
+      </div>
+      <div class="field" data-visible-if="period_type=last_n_days"><label>Number of days</label><input type="number" min="1" max="3660" name="period_days" value="{{ cfg.period.days }}"></div>
+      <div class="field" data-visible-if="period_type=custom"><label>From</label><input type="date" name="period_start" value="{{ cfg.period.start }}"></div>
+      <div class="field" data-visible-if="period_type=custom"><label>Until (inclusive)</label><input type="date" name="period_end" value="{{ cfg.period.end }}"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Calculation</h2>
+    <div class="row">
+      <div class="field"><label>SLA target (%)</label><input type="number" step="0.001" min="0" max="100" name="sla_target" value="{{ cfg.sla_target }}">
+        <div class="hint">Colours green/amber/red and the SLA met/missed counts.</div></div>
+      <div class="field"><label>Ignore incidents shorter than (minutes)</label><input type="number" step="0.5" min="0" name="min_duration_min" value="{{ f.min_duration_min }}">
+        <div class="hint">Filters flapping / short blips. They are left out of downtime too.</div></div>
+    </div>
+    <label class="check"><input type="checkbox" name="maintenance_as_down" {{ 'checked' if f.maintenance_as_down }}> Count maintenance as downtime</label>
+    <div class="hint">By default maintenance windows from Kuma are excluded from the availability calculation.</div>
+
+    <h3>Business hours</h3>
+    <label class="check"><input type="checkbox" name="bh_enabled" {{ 'checked' if f.business_hours.enabled }}> Only count business hours</label>
+    <div class="row" style="margin-top:8px">
+      <div class="field"><label>Days</label>
+        {% for d_ in range(7) %}<label class="check"><input type="checkbox" name="bh_days" value="{{ d_ }}" {{ 'checked' if d_ in f.business_hours.days }}> {{ WEEKDAYS[d_] }}</label>{% endfor %}
+      </div>
+      <div class="field"><label>From</label><input type="time" name="bh_start" value="{{ f.business_hours.start }}"></div>
+      <div class="field"><label>Until</label><input type="time" name="bh_end" value="{{ f.business_hours.end }}"></div>
+    </div>
+    <div class="hint">Downtime and monitored time outside these hours are ignored — useful for office-hours SLAs.</div>
+  </div>
+</div>
+
+{# ------------------------------------------------------------ content #}
+<div class="tab" id="tab-content">
+  <div class="card">
+    <h2>Sections</h2>
+    <p class="muted small" style="margin-top:-4px">Built-in templates follow these switches; custom templates can use <code>sections.*</code>.</p>
+    {% set labels = {"summary": "Summary tiles", "chart": "Availability chart", "monitors": "Per-monitor table",
+                     "incidents": "Incident list", "top": "Most downtime (top N)", "messages": "Most frequent error messages",
+                     "response": "Response times", "compare": "Compare with previous period"} %}
+    {% for k, v in labels.items() %}<label class="check" style="min-width:230px"><input type="checkbox" name="sec_{{ k }}" {{ 'checked' if cfg.sections[k] }}> {{ v }}</label>{% endfor %}
+    <div class="row" style="margin-top:14px">
+      <div class="field"><label>Group monitors by</label>
+        <select name="group_by">
+          <option value="none" {{ 'selected' if cfg.group_by == 'none' }}>No grouping</option>
+          <option value="group" {{ 'selected' if cfg.group_by == 'group' }}>Kuma group</option>
+          <option value="tag" {{ 'selected' if cfg.group_by == 'tag' }}>Tag</option>
+        </select></div>
+      <div class="field"><label>Top N</label><input type="number" min="1" max="100" name="top_n" value="{{ cfg.top_n }}"></div>
+      <div class="field"><label>Max. incidents listed</label><input type="number" min="1" max="5000" name="max_incidents" value="{{ cfg.max_incidents }}"></div>
+    </div>
+  </div>
+</div>
+
+{# ------------------------------------------------------------ delivery #}
+<div class="tab" id="tab-delivery">
+  <div class="card">
+    <h2>Recipients</h2>
+    <div class="field"><label>Split</label>
+      <label class="check"><input type="radio" name="split" value="none" {{ 'checked' if d.split != 'notification' }}> One report for the whole scope</label>
+      <label class="check"><input type="radio" name="split" value="notification" {{ 'checked' if d.split == 'notification' }}> One report per Kuma e-mail notification</label>
+      <div class="hint">Per notification: every SMTP notification in Kuma that is linked to monitors in the scope gets its own report, with only those monitors, sent to that notification's “To” address. Ideal for customer reports.</div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Recipients</label><input type="text" name="recipients" value="{{ d.recipients }}" placeholder="ops@example.com, manager@example.com">
+        <div class="hint">Comma separated. With split per notification these receive a (BCC) copy of every split report.</div></div>
+      <div class="field"><label>CC</label><input type="text" name="cc" value="{{ d.cc }}"></div>
+    </div>
+    <label class="check"><input type="checkbox" name="kuma_recipients" {{ 'checked' if d.kuma_recipients }}> Also send to the addresses of Kuma e-mail notifications linked to monitors in scope</label>
+    {% if smtp_notifs %}<div class="hint">Kuma e-mail notifications: {% for n in smtp_notifs %}<b>{{ n.name }}</b> ({{ n.config.smtpTo or "no To" }}){{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+    <label class="check" style="margin-top:8px"><input type="checkbox" name="only_if_incidents" {{ 'checked' if d.only_if_incidents }}> Only send when there were incidents</label>
+  </div>
+
+  <div class="card">
+    <h2>Sending</h2>
+    <div class="field"><label>Send via</label>
+      <select name="transport">
+        <option value="" {{ 'selected' if not d.transport }}>Automatic (first own SMTP transport, else Kuma's default e-mail notification)</option>
+        <option value="notification" {{ 'selected' if d.transport == 'notification' }}>SMTP settings of each Kuma notification (with split)</option>
+        {% for v, l in transports %}<option value="{{ v }}" {{ 'selected' if d.transport == v }}>{{ l }}</option>{% endfor %}
+      </select>
+      <div class="hint">Kuma's e-mail notifications can be reused as-is; or <a href="/mail">add an own SMTP transport</a>.</div>
+    </div>
+    <label>Attachments</label>
+    <label class="check"><input type="checkbox" name="attach_pdf" {{ 'checked' if d.attach_pdf }}> PDF</label>
+    <label class="check"><input type="checkbox" name="attach_xlsx" {{ 'checked' if d.attach_xlsx }}> Excel (.xlsx)</label>
+    <label class="check"><input type="checkbox" name="attach_csv" {{ 'checked' if d.attach_csv }}> CSV (monitors + incidents)</label>
+  </div>
+
+  <div class="card">
+    <h2>Schedule</h2>
+    {% set cur = report.schedule if report else "0 7 1 * *" %}
+    {% set is_custom = cur and cur not in SCHEDULE_PRESETS %}
+    <div class="row">
+      <div class="field"><label>When</label>
+        <select name="schedule_preset">
+          {% for k, v in SCHEDULE_PRESETS.items() %}<option value="{{ k }}" {{ 'selected' if (cur or '') == k }}>{{ v }}</option>{% endfor %}
+          <option value="custom" {{ 'selected' if is_custom }}>Custom (cron)…</option>
+        </select></div>
+      <div class="field" data-visible-if="schedule_preset=custom"><label>Cron expression</label>
+        <input type="text" name="schedule_custom" value="{{ cur if is_custom else '' }}" placeholder="m h dom mon dow — e.g. 30 6 * * 1">
+        <div class="hint">Standard 5-field crontab, in the server timezone.</div></div>
+    </div>
+    <div class="hint">Tip: match the period to the schedule — e.g. monthly on the 1st with “Previous month”, daily with “Yesterday”.</div>
+  </div>
+</div>
+
+<div class="sticky-bar">
+  <button class="primary" name="action" value="save">Save</button>
+  <button name="action" value="preview">Save &amp; preview</button>
+  <a class="btn" href="/reports">Cancel</a>
+  <span class="scope-count" id="scope-count"></span>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}<script>initReportForm();</script>{% endblock %}

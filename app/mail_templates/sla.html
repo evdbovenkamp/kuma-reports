@@ -1,0 +1,40 @@
+{#- Customer-facing SLA statement: availability per service against the SLA target,
+    without technical error messages. Works well with "split per Kuma notification". -#}
+{% import "macros.html" as k %}
+{% call k.page(680) %}
+  {{ k.header(report, t, "#1d4ed8") }}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="margin:0 0 12px 0;border-spacing:6px 0">
+    <tr>
+      {{ k.tile(t.avg_availability, summary.uptime_str, t.sla_target ~ " " ~ sla_target_str, summary.color) }}
+      {{ k.tile(t.sla_met, summary.sla_met ~ " / " ~ summary.monitors_with_data,
+                (summary.sla_missed ~ " × " ~ t.sla_missed|lower) if summary.sla_missed else "",
+                "#2f9e5b" if not summary.sla_missed else "#d64545") }}
+      {{ k.tile(t.incidents, summary.incidents, t.total_downtime ~ ": " ~ summary.downtime_str) }}
+    </tr>
+  </table>
+
+  {% if series %}{{ k.chart(series, series_title, 70) }}{% endif %}
+
+  {{ k.section_title(t.availability) }}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px">
+    <tr>{{ k.th(t.monitor) }}{{ k.th(t.availability, "right") }}{{ k.th(t.sla, "center") }}{{ k.th(t.incidents, "right") }}{{ k.th(t.downtime, "right") }}</tr>
+    {% for m in monitors %}
+    <tr>
+      {{ k.td(m.name) }}
+      {{ k.td(k.uptime_badge(m), "right") }}
+      {{ k.td("✔" if m.sla_met else ("✘" if m.uptime is not none else "–"), "center",
+              "font-weight:700;color:" ~ ("#2f9e5b" if m.sla_met else "#d64545")) }}
+      {{ k.td(m.incidents or "–", "right") }}
+      {{ k.td(m.downtime_str, "right") }}
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% if incidents %}
+    {{ k.section_title(t.incidents) }}
+    {{ k.incident_table(incidents, t, show_message=False) }}
+  {% endif %}
+
+  {{ k.footer(report, t) }}
+{% endcall %}

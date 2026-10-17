@@ -1,0 +1,165 @@
+{#- Building blocks for report templates. Use in a template with:
+      {% import "macros.html" as k %}  …  {{ k.tiles(summary, t) }}
+    All styles are inline so they survive e-mail clients (Outlook, Gmail). -#}
+
+{% macro styles() -%}
+font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;font-size:14px;line-height:1.45
+{%- endmacro %}
+
+{% macro header(report, t, accent="#2f9e5b") -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:3px solid {{ accent }};margin-bottom:18px">
+  <tr><td style="padding:0 0 12px 0">
+    <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280">{{ t.report }} · {{ report.period }}</div>
+    <div style="font-size:22px;font-weight:700;color:#111827;margin-top:2px">{{ report.title }}</div>
+    {% if report.intro %}<div style="margin-top:8px;color:#374151">{{ report.intro | nl2br }}</div>{% endif %}
+  </td></tr>
+</table>
+{%- endmacro %}
+
+{% macro tile(label, value, sub="", color="#111827") -%}
+<td valign="top" style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb">
+  <div style="font-size:12px;color:#6b7280">{{ label }}</div>
+  <div style="font-size:20px;font-weight:700;color:{{ color }};margin-top:2px">{{ value }}</div>
+  {% if sub %}<div style="font-size:12px;color:#6b7280;margin-top:2px">{{ sub }}</div>{% endif %}
+</td>
+{%- endmacro %}
+
+{% macro tiles(summary, t, sla_target_str="", previous=None) -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="margin:0 0 12px 0;border-spacing:6px 0">
+  <tr>
+    {{ tile(t.avg_availability, summary.uptime_str,
+            (t.sla_target ~ " " ~ sla_target_str) if sla_target_str else "", summary.color) }}
+    {{ tile(t.incidents, summary.incidents,
+            (summary.affected ~ " / " ~ summary.monitors ~ " " ~ t.monitors|lower ~ " " ~ t.affected|lower)) }}
+    {{ tile(t.total_downtime, summary.downtime_str, t.longest_incident ~ ": " ~ summary.longest_str) }}
+    {{ tile(t.mttr, summary.mttr_str, t.avg_response ~ ": " ~ summary.ping_avg_str) }}
+  </tr>
+</table>
+{% if previous %}
+<div style="font-size:12px;color:#6b7280;margin:-4px 0 14px 0">
+  {{ t.vs_previous }} ({{ previous.label }}): {{ t.availability|lower }} {{ previous.uptime_str }}
+  ({{ previous.uptime_delta_str }}), {{ t.incidents|lower }} {{ previous.incidents }}
+  ({{ "%+d"|format(previous.incidents_delta) }})
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro section_title(text) -%}
+<div style="font-size:15px;font-weight:700;color:#111827;margin:22px 0 8px 0">{{ text }}</div>
+{%- endmacro %}
+
+{% macro chart(series, title="", height=90) -%}
+{% if title %}{{ section_title(title) }}{% endif %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed">
+  <tr>
+    {% for b in series %}
+    <td valign="bottom" align="center" width="{{ (100 / series|length) | round(2) }}%" style="height:{{ height }}px;padding:0" title="{{ b.label }}: {{ b.uptime_str }}{% if b.incidents %} · {{ b.incidents }}{% endif %}">
+      <div style="height:{{ (b.height * height / 100) | round | int }}px;background:{{ b.color }};margin:0 1px;border-radius:2px 2px 0 0;font-size:0;line-height:0">&nbsp;</div>
+    </td>
+    {% endfor %}
+  </tr>
+  {% if series|length <= 31 %}
+  <tr>
+    {% for b in series %}
+    <td align="center" style="font-size:9px;color:#9ca3af;padding-top:3px;white-space:nowrap;overflow:hidden">{{ b.label.split(" ")[-1] }}</td>
+    {% endfor %}
+  </tr>
+  {% endif %}
+</table>
+<div style="font-size:11px;color:#9ca3af;margin-top:4px">
+  <span style="color:#2f9e5b">■</span> ≥ SLA &nbsp; <span style="color:#e0a800">■</span> &lt; SLA &nbsp; <span style="color:#d64545">■</span> &lt; SLA −1 pp
+</div>
+{%- endmacro %}
+
+{% macro th(text, align="left") -%}
+<th align="{{ align }}" style="padding:7px 8px;border-bottom:2px solid #e5e7eb;font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap">{{ text }}</th>
+{%- endmacro %}
+
+{% macro td(text, align="left", style="") -%}
+<td align="{{ align }}" valign="top" style="padding:6px 8px;border-bottom:1px solid #f0f1f3;{{ style }}">{{ text }}</td>
+{%- endmacro %}
+
+{% macro uptime_badge(m) -%}
+<span style="display:inline-block;min-width:64px;text-align:right;font-weight:600;color:{{ m.color }}">{{ m.uptime_str }}</span>
+{%- endmacro %}
+
+{% macro monitor_table(monitors, t, show_group=True, show_response=True, show_mtbf=False) -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px">
+  <tr>
+    {{ th(t.monitor) }}
+    {{ th(t.availability, "right") }}
+    {{ th(t.incidents, "right") }}
+    {{ th(t.downtime, "right") }}
+    {{ th(t.longest, "right") }}
+    {% if show_mtbf %}{{ th(t.mttr, "right") }}{{ th(t.mtbf, "right") }}{% endif %}
+    {% if show_response %}{{ th(t.avg_response, "right") }}{% endif %}
+  </tr>
+  {% for m in monitors %}
+  <tr>
+    <td valign="top" style="padding:6px 8px;border-bottom:1px solid #f0f1f3">
+      {% if m.link %}<a href="{{ m.link }}" style="color:#111827;text-decoration:none">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}
+      {% if show_group and m.group %}<div style="font-size:11px;color:#9ca3af">{{ m.group }}</div>{% endif %}
+    </td>
+    {{ td(uptime_badge(m), "right") }}
+    {{ td(m.incidents or "–", "right") }}
+    {{ td(m.downtime_str, "right") }}
+    {{ td(m.longest_str, "right") }}
+    {% if show_mtbf %}{{ td(m.mttr_str, "right") }}{{ td(m.mtbf_str, "right") }}{% endif %}
+    {% if show_response %}{{ td(m.ping_avg_str, "right", "color:#6b7280") }}{% endif %}
+  </tr>
+  {% endfor %}
+</table>
+{%- endmacro %}
+
+{% macro incident_table(incidents, t, show_message=True, show_group=False) -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px">
+  <tr>
+    {{ th(t.monitor) }}{{ th(t.start) }}{{ th(t.end) }}{{ th(t.duration, "right") }}
+  </tr>
+  {% for i in incidents %}
+  <tr>
+    <td valign="top" style="padding:6px 8px;border-bottom:1px solid #f0f1f3">
+      <strong>{{ i.monitor }}</strong>
+      {% if show_group and i.group %}<span style="color:#9ca3af"> · {{ i.group }}</span>{% endif %}
+      {% if show_message and i.message %}<div style="font-size:12px;color:#6b7280;word-break:break-word">{{ i.message | truncate(160) }}</div>{% endif %}
+      {% if i.note %}<div style="font-size:12px;color:#1d4ed8;margin-top:2px">✎ {{ i.note }}</div>{% endif %}
+    </td>
+    {{ td(i.start_str, style="white-space:nowrap") }}
+    {{ td(i.end_str, style="white-space:nowrap" ~ (";color:#d64545;font-weight:600" if i.ongoing else "")) }}
+    {{ td(i.duration_str, "right", "white-space:nowrap") }}
+  </tr>
+  {% endfor %}
+</table>
+{%- endmacro %}
+
+{% macro message_table(messages, t) -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px">
+  <tr>{{ th(t.message) }}{{ th(t.count, "right") }}</tr>
+  {% for m in messages %}
+  <tr>{{ td(m.message, style="word-break:break-word") }}{{ td(m.count, "right") }}</tr>
+  {% endfor %}
+</table>
+{%- endmacro %}
+
+{% macro footer(report, t) -%}
+<div style="margin-top:28px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af">
+  {{ t.generated }} {{ report.generated }}
+  {% if report.filters %} · {{ report.filters | join(" · ") }}{% endif %}
+  {% if report.kuma_url %} · <a href="{{ report.kuma_url }}" style="color:#9ca3af">{{ t.view_in_kuma }}</a>{% endif %}
+  <br>{{ t.footer }}
+</div>
+{%- endmacro %}
+
+{% macro page(content_width=760) -%}
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6">
+<tr><td align="center" class="kr-canvas" style="padding:20px 10px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:{{ content_width }}px;background:#ffffff;border-radius:10px">
+<tr><td class="kr-content" align="left" style="padding:26px 28px;text-align:left;{{ styles() }}">
+{{ caller() }}
+</td></tr></table>
+</td></tr></table>
+</body></html>
+{%- endmacro %}
