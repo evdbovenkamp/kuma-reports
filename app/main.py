@@ -34,8 +34,6 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Kuma Reports", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-app.add_middleware(SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="kuma_reports",
-                   max_age=14 * 86400, same_site="lax", https_only=config.BASE_URL.startswith("https"))
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.globals.update(
@@ -83,6 +81,11 @@ async def auth_middleware(request: Request, call_next):
                 return RedirectResponse("/setup", 303)
             return RedirectResponse(f"/login?next={path}", 303)
     return await call_next(request)
+
+
+# Added after the auth middleware so it wraps it (the last added middleware runs first).
+app.add_middleware(SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="kuma_reports",
+                   max_age=14 * 86400, same_site="lax", https_only=config.BASE_URL.startswith("https"))
 
 
 def csrf_token(request: Request) -> str:
