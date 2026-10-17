@@ -122,7 +122,14 @@ fi
 # ------------------------------------------------------------------ find Uptime Kuma
 info "Looking for Uptime Kuma"
 if [ -z "$KUMA_CONTAINER" ]; then
-  mapfile -t candidates < <(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /uptime-kuma/ {print $1}')
+  # Image name contains "uptime-kuma" (also custom builds) AND the container has Kuma's /app/data mount —
+  # that excludes companions like API bridges whose image names contain "uptime-kuma" too.
+  candidates=()
+  for c in $(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /uptime-kuma/ {print $1}'); do
+    if docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$c" | grep -qw '/app/data'; then
+      candidates+=("$c")
+    fi
+  done
   if [ "${#candidates[@]}" -eq 0 ]; then
     die "no running Uptime Kuma container found — start it, or pass --container NAME"
   elif [ "${#candidates[@]}" -eq 1 ]; then

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Installer: only containers with Kuma's `/app/data` mount count as Uptime Kuma, so companion containers whose
+  image name contains "uptime-kuma" (e.g. API bridges) are no longer offered.
+
 ## 0.1.3 — 2026-10-17
 
 Found while installing on a small VPS (1 GB RAM, no swap) next to Uptime Kuma:
