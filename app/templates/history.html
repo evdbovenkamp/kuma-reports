@@ -8,10 +8,10 @@
     {% for r in runs %}
     <tr>
       <td class="small" style="white-space:nowrap">{{ r.started_at | local }}</td>
-      <td>{% if r.report_id %}<a href="/reports/{{ r.report_id }}/preview">{{ r.report_name }}</a>{% else %}{{ r.report_name }}{% endif %}</td>
+      <td>{% if r.report_id %}<a href="{{ base }}/reports/{{ r.report_id }}/preview">{{ r.report_name }}</a>{% else %}{{ r.report_name }}{% endif %}</td>
       <td class="small">{{ r.trigger }}</td>
       <td><span class="badge {{ r.status }}">{{ r.status }}</span>{% if r.message %}<div class="small muted" style="max-width:280px;word-break:break-word">{{ r.message }}</div>{% endif %}</td>
-      <td class="small">{% if r.html %}<a href="/history/{{ r.id }}" target="_blank">{{ r.subject or "view" }}</a>{% else %}{{ r.subject or "–" }}{% endif %}</td>
+      <td class="small">{% if r.html %}<a href="{{ base }}/history/{{ r.id }}" target="_blank">{{ r.subject or "view" }}</a>{% else %}{{ r.subject or "–" }}{% endif %}</td>
       <td class="small muted" style="max-width:260px;word-break:break-word">{{ r.recipients or "–" }}</td>
     </tr>
     {% else %}

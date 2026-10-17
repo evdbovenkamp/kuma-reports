@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ "Set up" if setup else "Log in" }} · Kuma Reports</title>
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v={{ version }}">
+  <link rel="icon" href="{{ base }}/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ base }}/static/style.css?v={{ version }}">
 </head>
 <body>
 <div class="login">
-  <div class="brand"><img src="/static/favicon.svg" width="26" height="26" alt="" style="vertical-align:-6px"> Kuma <span>Reports</span></div>
+  <div class="brand"><img src="{{ base }}/static/favicon.svg" width="26" height="26" alt="" style="vertical-align:-6px"> Kuma <span>Reports</span></div>
   {% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
   <div class="card">
     {% if setup %}
       <h2>Create the admin password</h2>
       <p class="muted small">No <code>ADMIN_PASSWORD</code> is set, so choose one now. The username is <code>{{ ADMIN_USERNAME }}</code> unless <code>ADMIN_USERNAME</code> is set.</p>
-      <form method="post" action="/setup">
+      <form method="post" action="{{ base }}/setup">
         <div class="field"><label>Password</label><input type="password" name="password" minlength="10" required autofocus></div>
         <div class="field"><label>Repeat password</label><input type="password" name="password2" minlength="10" required></div>
         <button class="primary">Save and continue</button>
       </form>
     {% else %}
-      <form method="post" action="/login">
+      <form method="post" action="{{ base }}/login">
         <input type="hidden" name="next" value="{{ next }}">
         <div class="field"><label>Username</label><input type="text" name="username" autocomplete="username" required autofocus></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div>

@@ -60,7 +60,7 @@ function initReportForm() {
     clearTimeout(timer);
     timer = setTimeout(function () {
       var data = new FormData(form);
-      fetch("/api/scope-preview", { method: "POST", body: data, credentials: "same-origin" })
+      fetch((window.BASE || "") + "/api/scope-preview", { method: "POST", body: data, credentials: "same-origin" })
         .then(function (r) { return r.json(); })
         .then(function (j) {
           out.textContent = j.count + " monitor" + (j.count === 1 ? "" : "s") + " in scope · " + j.period;
@@ -87,7 +87,7 @@ function initTemplateEditor(tid) {
     timer = setTimeout(function () {
       var data = new FormData(form);
       data.set("report_id", sel ? sel.value : "");
-      fetch("/templates/" + tid + "/try", { method: "POST", body: data, credentials: "same-origin" })
+      fetch((window.BASE || "") + "/templates/" + tid + "/try", { method: "POST", body: data, credentials: "same-origin" })
         .then(function (r) { return r.json(); })
         .then(function (j) {
           if (j.error) { err.textContent = j.error; err.style.display = ""; return; }

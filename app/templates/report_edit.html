@@ -4,17 +4,17 @@
 <div class="spread">
   <div>
     <h1>{{ report.name if report else "New report" }}</h1>
-    <p class="sub">{% if report %}<a href="/reports/{{ report.id }}/preview">Preview</a> · <a href="/history?report={{ report.id }}">History</a>{% else %}Choose what to report on, over which period, and who receives it.{% endif %}</p>
+    <p class="sub">{% if report %}<a href="{{ base }}/reports/{{ report.id }}/preview">Preview</a> · <a href="{{ base }}/history?report={{ report.id }}">History</a>{% else %}Choose what to report on, over which period, and who receives it.{% endif %}</p>
   </div>
   {% if report %}
   <div class="actions">
-    <form class="inline" method="post" action="/reports/{{ report.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
-    <form class="inline" method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Delete</button></form>
+    <form class="inline" method="post" action="{{ base }}/reports/{{ report.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
+    <form class="inline" method="post" action="{{ base }}/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Delete</button></form>
   </div>
   {% endif %}
 </div>
 
-<form method="post" action="/reports/save" id="reportform">
+<form method="post" action="{{ base }}/reports/save" id="reportform">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 {% if report %}<input type="hidden" name="id" value="{{ report.id }}">{% endif %}
 
@@ -43,7 +43,7 @@
         <select name="template_id">
           {% for t in mail_templates %}<option value="{{ t.id }}" {{ 'selected' if (report and report.template_id == t.id) or (not (report and report.template_id) and t.key == 'standard') }}>{{ t.name }}</option>{% endfor %}
         </select>
-        <div class="hint"><a href="/templates">Manage templates</a> — layout of subject and mail body.</div>
+        <div class="hint"><a href="{{ base }}/templates">Manage templates</a> — layout of subject and mail body.</div>
       </div>
       <div class="field"><label>&nbsp;</label><label class="check"><input type="checkbox" name="enabled" {{ 'checked' if not report or report.enabled }}> Enabled (scheduled sending active)</label></div>
     </div>
@@ -208,7 +208,7 @@
         <option value="notification" {{ 'selected' if d.transport == 'notification' }}>SMTP settings of each Kuma notification (with split)</option>
         {% for v, l in transports %}<option value="{{ v }}" {{ 'selected' if d.transport == v }}>{{ l }}</option>{% endfor %}
       </select>
-      <div class="hint">Kuma's e-mail notifications can be reused as-is; or <a href="/mail">add an own SMTP transport</a>.</div>
+      <div class="hint">Kuma's e-mail notifications can be reused as-is; or <a href="{{ base }}/mail">add an own SMTP transport</a>.</div>
     </div>
     <label>Attachments</label>
     <label class="check"><input type="checkbox" name="attach_pdf" {{ 'checked' if d.attach_pdf }}> PDF</label>
@@ -237,7 +237,7 @@
 <div class="sticky-bar">
   <button class="primary" name="action" value="save">Save</button>
   <button name="action" value="preview">Save &amp; preview</button>
-  <a class="btn" href="/reports">Cancel</a>
+  <a class="btn" href="{{ base }}/reports">Cancel</a>
   <span class="scope-count" id="scope-count"></span>
 </div>
 </form>

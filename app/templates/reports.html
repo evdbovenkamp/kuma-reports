@@ -2,7 +2,7 @@
 {% block content %}
 <div class="spread">
   <div><h1>Reports</h1><p class="sub">Each report combines a scope (monitors, groups, tags), a period, a template, recipients and a schedule.</p></div>
-  <a class="btn primary" href="/reports/new">+ New report</a>
+  <a class="btn primary" href="{{ base }}/reports/new">+ New report</a>
 </div>
 <div class="card">
   {% if reports %}
@@ -10,7 +10,7 @@
     <tr><th>Name</th><th>Scope</th><th>Period</th><th>Template</th><th>Schedule</th><th>Next run</th><th>Last run</th><th></th></tr>
     {% for r in reports %}{% set cfg = r.config %}
     <tr>
-      <td><a href="/reports/{{ r.id }}"><b>{{ r.name }}</b></a>{% if not r.enabled %} <span class="badge">disabled</span>{% endif %}
+      <td><a href="{{ base }}/reports/{{ r.id }}"><b>{{ r.name }}</b></a>{% if not r.enabled %} <span class="badge">disabled</span>{% endif %}
         {% if (cfg.delivery or {}).split == "notification" %}<div class="small muted">split per Kuma notification</div>{% endif %}</td>
       <td class="small">{{ describe(r) }}</td>
       <td class="small">{{ PERIODS.get((cfg.period or {}).type, "?") }}</td>
@@ -19,8 +19,8 @@
       <td class="small">{{ next_runs[r.id].strftime("%Y-%m-%d %H:%M") if next_runs[r.id] else "–" }}</td>
       <td class="small">{% set l = last[r.id] %}{% if l %}<span class="badge {{ l.status }}">{{ l.status }}</span> {{ l.started_at | local }}{% else %}–{% endif %}</td>
       <td class="actions" style="justify-content:flex-end">
-        <a class="btn small" href="/reports/{{ r.id }}/preview">Preview</a>
-        <form class="inline" method="post" action="/reports/{{ r.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
+        <a class="btn small" href="{{ base }}/reports/{{ r.id }}/preview">Preview</a>
+        <form class="inline" method="post" action="{{ base }}/reports/{{ r.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Duplicate</button></form>
       </td>
     </tr>
     {% endfor %}

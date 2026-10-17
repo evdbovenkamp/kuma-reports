@@ -4,23 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}Kuma Reports{% endblock %}</title>
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v={{ version }}">
+  <link rel="icon" href="{{ base }}/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ base }}/static/style.css?v={{ version }}">
 </head>
 <body>
 <div class="layout">
   <nav class="side">
-    <div class="brand"><img src="/static/favicon.svg" width="22" height="22" alt=""> Kuma <span>Reports</span></div>
+    <div class="brand"><img src="{{ base }}/static/favicon.svg" width="22" height="22" alt=""> Kuma <span>Reports</span></div>
     {% set items = [("dashboard","/","Dashboard"),("report","/reports","Reports"),("template","/templates","Templates"),
                     ("mail","/mail","Mail"),("monitors","/monitors","Monitors"),("incidents","/incidents","Incidents"),
                     ("history","/history","History")] %}
     {% for key, href, label in items %}
-      <a href="{{ href }}" class="{{ 'active' if nav.startswith(key) else '' }}">{{ label }}</a>
+      <a href="{{ base }}{{ href }}" class="{{ 'active' if nav.startswith(key) else '' }}">{{ label }}</a>
     {% endfor %}
     <div class="bottom">
       v{{ version }}
       {% if auth and user %} · {{ user }} ·
-        <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small" style="border:none;padding:0;color:var(--muted);background:none">log out</button></form>
+        <form method="post" action="{{ base }}/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small" style="border:none;padding:0;color:var(--muted);background:none">log out</button></form>
       {% endif %}
     </div>
   </nav>
@@ -29,8 +29,8 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script>window.CSRF = {{ csrf | tojson }};</script>
-<script src="/static/app.js?v={{ version }}"></script>
+<script>window.CSRF = {{ csrf | tojson }}; window.BASE = {{ base | tojson }};</script>
+<script src="{{ base }}/static/app.js?v={{ version }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

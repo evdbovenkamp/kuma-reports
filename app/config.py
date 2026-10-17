@@ -46,6 +46,8 @@ ADMIN_USERNAME = _env("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
 
 BASE_URL = (_env("BASE_URL", "") or "").rstrip("/")
+# Serve the GUI under a sub-path, e.g. "/reports" behind https://kuma.example.com/reports
+BASE_PATH = "/" + (_env("BASE_PATH", "") or "").strip("/") if (_env("BASE_PATH", "") or "").strip("/") else ""
 LOG_LEVEL = (_env("LOG_LEVEL", "INFO") or "INFO").upper()
 
 
@@ -63,4 +65,4 @@ def _secret_key() -> str:
 
 
 SECRET_KEY = _secret_key()
-VERSION = "0.1.1"
+VERSION = "0.1.2"

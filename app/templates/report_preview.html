@@ -3,7 +3,7 @@
 <div class="spread">
   <div>
     <h1>{{ report.name }}</h1>
-    <p class="sub"><a href="/reports/{{ report.id }}">Edit</a> · <a href="/history?report={{ report.id }}">History</a>
+    <p class="sub"><a href="{{ base }}/reports/{{ report.id }}">Edit</a> · <a href="{{ base }}/history?report={{ report.id }}">History</a>
       · {% if report.schedule and report.enabled %}next run {{ next_run.strftime("%Y-%m-%d %H:%M") if next_run else "–" }}{% else %}not scheduled{% endif %}</p>
   </div>
 </div>
@@ -29,15 +29,15 @@
       <div class="small muted">Subject</div>
       <div style="font-weight:600;margin-bottom:10px">{{ subject }}</div>
       {% set q = "job=" ~ job ~ ("&template=" ~ tpl.id if tpl else "") %}
-      <iframe class="preview-frame" src="/reports/{{ report.id }}/render?{{ q }}" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+      <iframe class="preview-frame" src="{{ base }}/reports/{{ report.id }}/render?{{ q }}" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
       <div class="actions" style="margin-top:10px">
         <span class="small muted">Download:</span>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=pdf">PDF</a>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=xlsx">Excel</a>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=monitors.csv">CSV monitors</a>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=incidents.csv">CSV incidents</a>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}&fmt=text" target="_blank">Plain text</a>
-        <a class="btn small" href="/reports/{{ report.id }}/render?{{ q }}" target="_blank">Open HTML</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}&fmt=pdf">PDF</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}&fmt=xlsx">Excel</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}&fmt=monitors.csv">CSV monitors</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}&fmt=incidents.csv">CSV incidents</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}&fmt=text" target="_blank">Plain text</a>
+        <a class="btn small" href="{{ base }}/reports/{{ report.id }}/render?{{ q }}" target="_blank">Open HTML</a>
       </div>
     {% endif %}
   </div>
@@ -57,7 +57,7 @@
     <div class="card">
       <h2>Send a test</h2>
       <p class="small muted">Sends {{ "every variant" if jobs|length > 1 else "the report" }} only to this address.</p>
-      <form method="post" action="/reports/{{ report.id }}/send">
+      <form method="post" action="{{ base }}/reports/{{ report.id }}/send">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <div class="field"><input type="email" name="test_to" required placeholder="you@example.com"></div>
         <button>Send test</button>
@@ -66,7 +66,7 @@
     <div class="card">
       <h2>Send now</h2>
       <p class="small muted">Sends to the real recipients, as the schedule would.</p>
-      <form method="post" action="/reports/{{ report.id }}/send" onsubmit="return confirm('Send this report to all recipients now?')">
+      <form method="post" action="{{ base }}/reports/{{ report.id }}/send" onsubmit="return confirm('Send this report to all recipients now?')">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary">Send to recipients</button>
       </form>

@@ -37,6 +37,7 @@ app = FastAPI(title="Kuma Reports", lifespan=lifespan, docs_url=None, redoc_url=
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.globals.update(
+    base=config.BASE_PATH,
     version=config.VERSION, PERIODS=engine.PERIODS, LANGUAGES=i18n.LANGUAGES,
     SCHEDULE_PRESETS=scheduler.SCHEDULE_PRESETS, WEEKDAYS=i18n.WEEKDAYS_SHORT["en"],
     ADMIN_USERNAME=config.ADMIN_USERNAME,
@@ -78,14 +79,15 @@ async def auth_middleware(request: Request, call_next):
     if config.AUTH_MODE != "none" and not path.startswith(PUBLIC_PATHS):
         if not request.session.get("user"):
             if not config.ADMIN_PASSWORD and not _stored_hash():
-                return RedirectResponse("/setup", 303)
-            return RedirectResponse(f"/login?next={path}", 303)
+                return redirect("/setup")
+            return redirect(f"/login?next={path}")
     return await call_next(request)
 
 
 # Added after the auth middleware so it wraps it (the last added middleware runs first).
 app.add_middleware(SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="kuma_reports",
-                   max_age=14 * 86400, same_site="lax", https_only=config.BASE_URL.startswith("https"))
+                   max_age=14 * 86400, same_site="lax", https_only=config.BASE_URL.startswith("https"),
+                   path=config.BASE_PATH or "/")
 
 
 def csrf_token(request: Request) -> str:
@@ -114,6 +116,9 @@ def flash(request: Request, message: str, kind: str = "ok") -> None:
 
 
 def redirect(url: str) -> RedirectResponse:
+    """Redirect to an app-relative path ("/reports/1") or a full URL (e.g. a Referer)."""
+    if url.startswith("/") and not url.startswith("//"):
+        url = config.BASE_PATH + url
     return RedirectResponse(url, 303)
 
 
@@ -194,6 +199,8 @@ async def login(request: Request):
     request.session.clear()
     request.session["user"] = user
     nxt = form.get("next") or "/"
+    if config.BASE_PATH and nxt.startswith(config.BASE_PATH + "/"):
+        nxt = nxt[len(config.BASE_PATH):]
     return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else "/")
 
 
@@ -793,3 +800,26 @@ def history_view(run_id: int):
         if not run or not run.html:
             raise HTTPException(404, "Archived report not available")
         return HTMLResponse(run.html)
+
+
+class _BasePath:
+    """Serve the app under config.BASE_PATH: strip the prefix before routing, redirect "/" to it.
+    Paths without the prefix keep working (e.g. /healthz for Docker and Uptime Kuma)."""
+
+    def __init__(self, inner, prefix: str):
+        self.inner, self.prefix = inner, prefix
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            path = scope["path"]
+            if path == self.prefix or path.startswith(self.prefix + "/"):
+                new = path[len(self.prefix):] or "/"
+                scope = dict(scope, path=new, raw_path=new.encode())
+            elif path == "/" and scope["type"] == "http":
+                await RedirectResponse(self.prefix + "/", 307)(scope, receive, send)
+                return
+        await self.inner(scope, receive, send)
+
+
+if config.BASE_PATH:
+    app = _BasePath(app, config.BASE_PATH)  # noqa: F811 - uvicorn serves this wrapper

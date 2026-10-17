@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="spread">
-  <div><h1>{{ tpl.name }}</h1><p class="sub"><a href="/templates">Templates</a>{% if tpl.key %} · built-in “{{ tpl.key }}”{% endif %}</p></div>
+  <div><h1>{{ tpl.name }}</h1><p class="sub"><a href="{{ base }}/templates">Templates</a>{% if tpl.key %} · built-in “{{ tpl.key }}”{% endif %}</p></div>
 </div>
-<form method="post" action="/templates/{{ tpl.id }}" id="tplform">
+<form method="post" action="{{ base }}/templates/{{ tpl.id }}" id="tplform">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <div class="editor">
   <div>

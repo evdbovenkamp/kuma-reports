@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-10-17
+
+- `BASE_PATH` setting: serve the GUI under a sub-path such as `https://kuma.example.com/reports`, e.g. behind
+  Uptime Kuma's own nginx site. `/healthz` keeps working without the prefix; the session cookie is scoped to the path.
+
 ## 0.1.1 — 2026-10-17
 
 - `/healthz` is now a real health check (Kuma database, import freshness, scheduler, deliveries in the last

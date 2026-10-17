@@ -25,7 +25,7 @@
       <td class="num">{{ i.duration(now) | duration }}</td>
       <td class="small muted" style="max-width:340px;word-break:break-word">{{ i.msg | truncate(200) }}</td>
       <td>
-        <form method="post" action="/incidents/{{ i.start_id }}" class="actions">
+        <form method="post" action="{{ base }}/incidents/{{ i.start_id }}" class="actions">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <input type="text" name="note" value="{{ i.note }}" placeholder="cause / remark" style="flex:1;min-width:140px;padding:3px 6px">
           <label class="check small" style="margin:0" title="Exclude from all reports"><input type="checkbox" name="excluded"> excl.</label>
@@ -50,7 +50,7 @@
       <td class="small">{{ x.sc.time | local }}</td>
       <td class="small muted">{{ x.note.note or "" }}</td>
       <td class="num">
-        <form method="post" action="/incidents/{{ x.note.start_id }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <form method="post" action="{{ base }}/incidents/{{ x.note.start_id }}"><input type="hidden" name="csrf" value="{{ csrf }}">
           <input type="hidden" name="note" value="{{ x.note.note or '' }}"><button class="small">Include again</button></form>
       </td>
     </tr>

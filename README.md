@@ -164,6 +164,30 @@ Set `BASE_URL=https://reports.example.com` in `.env` so session cookies are mark
 </details>
 
 <details>
+<summary>nginx: under a sub-path of Uptime Kuma's own site, only for your IPs</summary>
+
+Serve Kuma Reports at `https://kuma.example.com/reports` next to Uptime Kuma. Set `BASE_PATH=/reports` in
+`.env` (and restart), then add to Kuma's existing `server { … }` block:
+
+```nginx
+location = /reports { return 301 /reports/; }
+location ^~ /reports/ {
+    allow 203.0.113.10;          # your office / home IPv4
+    allow 2001:db8:1234::/48;    # your IPv6 prefix
+    deny  all;
+
+    proxy_pass http://127.0.0.1:8080;     # no trailing slash: the /reports prefix is kept
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+}
+```
+
+Uptime Kuma itself doesn't use `/reports`. The container stays reachable directly as well
+(`http://host:8080/reports/`), and `/healthz` keeps working without the prefix.
+</details>
+
+<details>
 <summary>Caddy example</summary>
 
 ```caddyfile
@@ -211,6 +235,7 @@ be read from a file by adding `_FILE` (Docker secrets), e.g. `KUMA_DB_PASSWORD_F
 | `AUTH_MODE` | `form` | `form` (built-in login) or `none` (only behind an authenticating proxy!). |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / – | Without a password you set one on first visit. |
 | `BASE_URL` | – | Public URL of Kuma Reports; `https://…` enables secure cookies. |
+| `BASE_PATH` | – | Serve under a sub-path, e.g. `/reports` (reverse proxy without stripping the prefix). |
 | `IMPORT_INTERVAL` | `300` | Seconds between imports from Kuma. |
 | `HISTORY_KEEP_DAYS` | `400` | How long archived report mails are kept. |
 | `PUID` / `PGID` | `1000` | User the app runs as inside the container. |
